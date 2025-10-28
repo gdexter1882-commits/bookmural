@@ -1,48 +1,74 @@
-def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
-    """
-    Returns layout metadata if the mural fits within the wall dimensions.
-    Enforces:
-    - Uniform scaling (aspect ratio preserved)
-    - Margins between 5–15 cm
-    - Row gap between 1–5 cm
-    - Page scaling between 95–105%
-    - Centered layout
-    """
+import os
+import json
+import requests
+from PIL import Image, ImageDraw
+from io import BytesIO
+from concurrent.futures import ThreadPoolExecutor
+from eligible_texts import slugify  # ✅ Ensures filename matches app.py
 
-    for margin_test in range(5, 16):  # test margins from 5 to 15 cm
-        usable_w = wall_w - 2 * margin_test
-        usable_h = wall_h - 2 * margin_test
+def draw_error_tile(width, height, page_num):
+    tile = Image.new("RGB", (width, height), "#eeeeee")
+    draw = ImageDraw.Draw(tile)
+    draw.text((width // 2 - 10, height // 2 - 10), f"X{page_num}", fill="red")
+    return tile
 
-        for scale_pct in range(95, 106):  # 95% to 105%
-            scaled_pw = page_w * scale_pct / 100
-            scaled_ph = page_h * scale_pct / 100
+def fetch_image(url, timeout=6):
+    try:
+        response = requests.get(url, timeout=timeout)
+        return Image.open(BytesIO(response.content)).convert("RGB")
+    except Exception as e:
+        print(f"⚠️ Failed to fetch {url}: {e}", flush=True)
+        return None
 
-            for row_gap in range(1, 6):  # 1 to 5 cm
-                for cols in range(1, pages + 1):
-                    rows = (pages + cols - 1) // cols  # ceiling division
+def draw_grid(layout, output_dir, cdn_map):
+    handle = layout["handle"]
+    pages = layout["pages"]
+    pw = int(layout["page_w"] * 5)
+    ph = int(layout["page_h"] * 5)
+    margin_x = int(layout["margin_x"] * 5)
+    margin_y = int(layout["margin_y"] * 5)
+    gap = layout["row_gap"] * 5
 
-                    mural_w = cols * scaled_pw
-                    mural_h = rows * scaled_ph + (rows - 1) * row_gap
+    cols = layout["cols"]
+    rows = layout["rows"]
+    canvas_w = cols * pw + (cols - 1) * gap + 2 * margin_x
+    canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
 
-                    if mural_w <= usable_w and mural_h <= usable_h:
-                        margin_x = (wall_w - mural_w) / 2
-                        margin_y = (wall_h - mural_h) / 2
+    img = Image.new("RGB", (canvas_w, canvas_h), "white")
 
-                        if not (5 <= margin_x <= 15 and 5 <= margin_y <= 15):
-                            continue
+    # Build list of URLs
+    page_urls = []
+    for page in pages:
+        rel_path = page["rel_path"]
+        page_urls.append(cdn_map.get(rel_path))
 
-                        return {
-                            "eligible": True,
-                            "grid": f"{rows}x{cols}",
-                            "rows": rows,
-                            "cols": cols,
-                            "scale_pct": scale_pct,
-                            "row_gap": row_gap,
-                            "margin_x": round(margin_x, 2),
-                            "margin_y": round(margin_y, 2),
-                            "page_w": round(scaled_pw, 2),
-                            "page_h": round(scaled_ph, 2),
-                            "text_centered": True
-                        }
+    # Fetch images in parallel
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        fetched_images = list(executor.map(lambda url: fetch_image(url) if url else None, page_urls))
 
-    return {"eligible": False}
+    success_count = sum(1 for img in fetched_images if img)
+    print(f"🧩 Successfully fetched {success_count} of {len(fetched_images)} pages", flush=True)
+
+    # Paste images into grid
+    for idx, page in enumerate(pages):
+        col = idx % cols
+        row = idx // cols
+        x = margin_x + col * (pw + gap)
+        y = margin_y + row * (ph + gap)
+
+        page_img = fetched_images[idx]
+        if page_img:
+            page_img = page_img.resize((pw, ph), Image.LANCZOS)
+        else:
+            page_img = draw_error_tile(pw, ph, idx + 1)
+
+        img.paste(page_img, (x, y))
+
+    # Save output using slugified handle
+    filename = f"{slugify(handle)}_grid.png"
+    out_path = os.path.join(output_dir, filename)
+    try:
+        img.save(out_path)
+        print(f"✅ Grid saved: {out_path}", flush=True)
+    except Exception as e:
+        print(f"❌ Failed to save grid: {e}", flush=True)
