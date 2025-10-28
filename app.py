@@ -77,8 +77,11 @@ def accurate_grid():
         if not layout.get("eligible"):
             return jsonify({"error": "Layout not eligible"}), 400
 
+        layout["handle"] = handle
+        layout["pages"] = mural["pages"]
+
         output_dir = os.path.join("static", "previews")
-        draw_grid(handle, layout, output_dir, mural["pages"], cdn_map)
+        draw_grid(layout, output_dir, cdn_map)
 
         filename = f"{slugify(handle)}_grid.png"
         return jsonify({"grid_url": f"static/previews/{filename}"})
