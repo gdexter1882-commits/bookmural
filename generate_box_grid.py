@@ -1,77 +1,77 @@
 import os
-import json
+import re
 import time
+import unicodedata
 import requests
-from PIL import Image, ImageDraw
+from PIL import Image
 from io import BytesIO
 
-def draw_error_tile(width, height, page_num):
-    tile = Image.new("RGB", (width, height), "#eeeeee")
-    draw = ImageDraw.Draw(tile)
-    draw.text((width // 2 - 10, height // 2 - 10), f"X{page_num}", fill="red")
-    return tile
+STATIC_ROOT = "static/previews"
 
-def fetch_image(url, timeout=6):
-    try:
-        response = requests.get(url, timeout=timeout)
-        return Image.open(BytesIO(response.content)).convert("RGB")
-    except Exception as e:
-        print(f"⚠️ Failed to fetch {url}: {e}", flush=True)
-        return None
+def slugify(text):
+    if not isinstance(text, str):
+        return ""
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_-]+", "-", text)
+    return text.lower().strip("-")
 
-def draw_grid(layout, output_dir, cdn_map):
-    handle = layout["handle"]
-    pages = layout["pages"]
-    pw = int(layout["page_w"] * 5)
-    ph = int(layout["page_h"] * 5)
-    margin_x = int(layout["margin_x"] * 5)
-    margin_y = int(layout["margin_y"] * 5)
-    gap = layout["row_gap"] * 5
+def draw_grid(handle, layout, output_dir, pages, cdn_map):
+    rows, cols = map(int, layout["grid"].split("x"))  # ✅ Corrected: rows first
+    pw = int(layout["page_w"] * 10)
+    ph = int(layout["page_h"] * 10)
+    margin_x = int(layout["margin_x"] * 10)
+    margin_y = int(layout["margin_y"] * 10)
+    gap = layout["row_gap"] * 10
 
-    cols = layout["cols"]
-    rows = layout["rows"]
-    canvas_w = cols * pw + (cols - 1) * gap + 2 * margin_x
-    canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
+    grid_w = cols * pw
+    grid_h = rows * ph + (rows - 1) * gap
+    canvas_w = grid_w + 2 * margin_x
+    canvas_h = grid_h + 2 * margin_y
 
     img = Image.new("RGB", (canvas_w, canvas_h), "white")
 
-    # Build list of URLs
-    page_urls = [cdn_map.get(page["rel_path"]) for page in pages]
-
-    print(f"⏱️ Starting image fetch for {len(page_urls)} pages", flush=True)
+    print(f"⏱️ Starting image fetch and paste for {pages} pages", flush=True)
     t0 = time.time()
-    fetched_images = []
-    for url in page_urls:
-        fetched_images.append(fetch_image(url) if url else None)
-    print(f"⏱️ Fetching took {time.time() - t0:.2f}s", flush=True)
 
-    success_count = sum(1 for img in fetched_images if img)
-    print(f"🧩 Successfully fetched {success_count} of {len(fetched_images)} pages", flush=True)
-
-    print("⏱️ Starting resize and paste", flush=True)
-    t1 = time.time()
-    for idx, page in enumerate(pages):
+    for idx in range(pages):
         col = idx % cols
         row = idx // cols
-        x = margin_x + col * (pw + gap)
+        x = margin_x + col * pw
         y = margin_y + row * (ph + gap)
 
-        page_img = fetched_images[idx]
-        if page_img:
-            page_img = page_img.resize((pw, ph), Image.BILINEAR)
-        else:
-            page_img = draw_error_tile(pw, ph, idx + 1)
+        page_num = idx + 1
+        rel_path = f"{handle}/page_{page_num:03}.jpg"
 
-        img.paste(page_img, (x, y))
-    print(f"⏱️ Resize and paste took {time.time() - t1:.2f}s", flush=True)
+        # 🔍 Match by suffix
+        url = next((v for k, v in cdn_map.items() if k.endswith(rel_path)), None)
 
-    filename = f"{handle}_grid.png"
-    out_path = os.path.join(output_dir, filename)
+        print(f"🔍 Looking for {rel_path} in cdn_map", flush=True)
+
+        if url is None:
+            print(f"⚠️ CDN map missing: {rel_path}", flush=True)
+
+        try:
+            fetch_start = time.time()
+            response = requests.get(url)
+            fetch_time = time.time() - fetch_start
+
+            page_img = Image.open(BytesIO(response.content)).convert("RGB")
+            page_img = page_img.resize((pw, ph), Image.LANCZOS)
+            img.paste(page_img, (x, y))
+            print(f"✅ Loaded page {page_num:03} in {fetch_time:.2f}s", flush=True)
+        except Exception as e:
+            print(f"⚠️ Failed to load {rel_path}: {e}", flush=True)
+            blank = Image.new("RGB", (pw, ph), "white")
+            img.paste(blank, (x, y))
+
+    print(f"⏱️ Total fetch + paste time: {time.time() - t0:.2f}s", flush=True)
+
+    os.makedirs(output_dir, exist_ok=True)
+    out_path = os.path.join(output_dir, f"{slugify(handle)}_grid.png")
 
     print("⏱️ Saving image...", flush=True)
     t2 = time.time()
-    try:
-        img.save(out_path)
-        print(f"✅ Grid saved: {out_path} ({time.time() - t2:.2f}s)", flush=True)
-    except Exception as e:
-        print(f"❌ Failed to save grid: {e}", flush=True)
+    img.save(out_path)
+    print(f"✅ Saved: {out_path} ({time.time() - t2:.2f}s)", flush=True)
