@@ -1,9 +1,22 @@
 import csv
-from slugify import slugify  # or define inline
-from layout import try_layout  # or define inline
+import unicodedata
+import re
 
 CSV_PATH = "mural_master_regenerated.csv"
 BASE_URL = "https://mediumresfacsimiles.r2.cloudflarestorage.com/thumbnails"
+
+def slugify(text):
+    if not isinstance(text, str):
+        return ""
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^\w\s-]", "", text)
+    text = re.sub(r"[\s_-]+", "-", text)
+    return text.lower().strip("-")
+
+def try_layout(wall_w, wall_h, page_w, page_h, pages):
+    # Placeholder — replace with actual layout logic
+    return {"eligible": True, "grid": "3x3", "scale_pct": 100}
 
 def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH):
     eligible = []
