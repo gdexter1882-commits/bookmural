@@ -1,6 +1,5 @@
 import os
 import re
-import time
 import unicodedata
 import requests
 from PIL import Image
@@ -32,9 +31,6 @@ def draw_grid(handle, layout, output_dir, pages, cdn_map):
 
     img = Image.new("RGB", (canvas_w, canvas_h), "white")
 
-    print(f"⏱️ Starting image fetch and paste for {pages} pages", flush=True)
-    t0 = time.time()
-
     for idx in range(pages):
         col = idx % cols
         row = idx // cols
@@ -53,25 +49,16 @@ def draw_grid(handle, layout, output_dir, pages, cdn_map):
             print(f"⚠️ CDN map missing: {rel_path}", flush=True)
 
         try:
-            fetch_start = time.time()
             response = requests.get(url)
-            fetch_time = time.time() - fetch_start
-
             page_img = Image.open(BytesIO(response.content)).convert("RGB")
             page_img = page_img.resize((pw, ph), Image.LANCZOS)
             img.paste(page_img, (x, y))
-            print(f"✅ Loaded page {page_num:03} in {fetch_time:.2f}s", flush=True)
         except Exception as e:
             print(f"⚠️ Failed to load {rel_path}: {e}", flush=True)
             blank = Image.new("RGB", (pw, ph), "white")
             img.paste(blank, (x, y))
 
-    print(f"⏱️ Total fetch + paste time: {time.time() - t0:.2f}s", flush=True)
-
     os.makedirs(output_dir, exist_ok=True)
     out_path = os.path.join(output_dir, f"{slugify(handle)}_grid.png")
-
-    print("⏱️ Saving image...", flush=True)
-    t2 = time.time()
     img.save(out_path)
-    print(f"✅ Saved: {out_path} ({time.time() - t2:.2f}s)", flush=True)
+    print(f"✅ Saved: {out_path}")
