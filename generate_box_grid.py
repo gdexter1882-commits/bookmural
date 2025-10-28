@@ -4,7 +4,6 @@ import time
 import requests
 from PIL import Image, ImageDraw
 from io import BytesIO
-from concurrent.futures import ThreadPoolExecutor
 from eligible_texts import slugify
 
 def draw_error_tile(width, height, page_num):
@@ -42,8 +41,9 @@ def draw_grid(layout, output_dir, cdn_map):
 
     print(f"⏱️ Starting image fetch for {len(page_urls)} pages", flush=True)
     t0 = time.time()
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        fetched_images = list(executor.map(lambda url: fetch_image(url) if url else None, page_urls))
+    fetched_images = []
+    for url in page_urls:
+        fetched_images.append(fetch_image(url) if url else None)
     print(f"⏱️ Fetching took {time.time() - t0:.2f}s", flush=True)
 
     success_count = sum(1 for img in fetched_images if img)
