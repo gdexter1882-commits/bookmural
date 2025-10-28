@@ -2,7 +2,8 @@ import os
 import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from eligible_texts import get_eligible_texts
+from eligible_texts import get_eligible_texts, try_layout, slugify
+from generate_box_grid import draw_grid
 
 os.environ["FLASK_RUN_HOST"] = "0.0.0.0"
 os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
@@ -56,6 +57,34 @@ def get_cdn_map():
     except Exception as e:
         print(f"❌ Error in /api/cdn-map: {e}", flush=True)
         return jsonify({"error": "Failed to load CDN map"}), 500
+
+@app.route("/api/accurate-grid", methods=["POST"])
+def accurate_grid():
+    try:
+        data = request.get_json()
+        handle = data.get("handle")
+        wall_width = float(data.get("wall_width", 0))
+        wall_height = float(data.get("wall_height", 0))
+
+        print(f"🧮 Generating grid for {handle} at {wall_width} x {wall_height}", flush=True)
+
+        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH)
+        mural = next((m for m in eligible if m["handle"] == handle), None)
+        if not mural:
+            return jsonify({"error": "Mural not found"}), 404
+
+        layout = try_layout(wall_width, wall_height, mural["aspect_ratio"] * mural["pages"], 100, mural["pages"])
+        if not layout.get("eligible"):
+            return jsonify({"error": "Layout not eligible"}), 400
+
+        output_dir = os.path.join("static", "previews")
+        draw_grid(handle, layout, output_dir, mural["pages"], cdn_map)
+
+        filename = f"{slugify(handle)}_grid.png"
+        return jsonify({"grid_url": f"static/previews/{filename}"})
+    except Exception as e:
+        print(f"❌ Error in /api/accurate-grid: {e}", flush=True)
+        return jsonify({"error": "Grid generation failed"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
