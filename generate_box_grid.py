@@ -22,7 +22,7 @@ def slugify(text):
     return text.lower().strip("-")
 
 def select_best_layout(wall_w, wall_h, page_w, page_h, pages):
-    # unchanged — layout logic is portable
+    # Placeholder — implement layout logic here
     ...
 
 def draw_grid(handle, layout, output_dir, pages, cdn_map):
@@ -65,11 +65,5 @@ def draw_grid(handle, layout, output_dir, pages, cdn_map):
     print(f"✅ Saved: {out_path}")
 
 def main():
-    # unchanged — just ensure STATIC_ROOT is writable on Render
-    ...
-
-    with open(CDN_MAP_PATH, "r", encoding="utf-8") as f:
-        cdn_map = json.load(f)
-
-    # rest of logic unchanged, just pass cdn_map to draw_grid
+    # Placeholder — implement CLI or batch logic here
     ...

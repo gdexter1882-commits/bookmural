@@ -1,7 +1,12 @@
-def get_eligible_texts(wall_width, wall_height):
+import csv
+from slugify import slugify  # or define inline
+from layout import try_layout  # or define inline
+
+CSV_PATH = "mural_master_regenerated.csv"
+BASE_URL = "https://mediumresfacsimiles.r2.cloudflarestorage.com/thumbnails"
+
+def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH):
     eligible = []
-    base_url = "https://mediumresfacsimiles.r2.cloudflarestorage.com/thumbnails"
-    csv_path = "mural_master_regenerated.csv"
 
     try:
         with open(csv_path, newline="", encoding="utf-8") as csvfile:
@@ -21,7 +26,7 @@ def get_eligible_texts(wall_width, wall_height):
                     layout = try_layout(wall_width, wall_height, width_cm, height_cm, pages)
 
                     if layout.get("eligible"):
-                        thumbnail_url = f"{base_url}/{handle}/page_001.jpg"
+                        thumbnail_url = f"{BASE_URL}/{handle}/page_001.jpg"
                         eligible.append({
                             "title": title,
                             "handle": handle,
@@ -34,8 +39,8 @@ def get_eligible_texts(wall_width, wall_height):
                         })
                 except Exception as e:
                     print(f"⚠️ Skipping row due to error: {e}", flush=True)
-        print(f"📄 Reloaded mural_master.csv with {len(eligible)} eligible entries", flush=True)
+        print(f"📄 Reloaded {csv_path} with {len(eligible)} eligible entries", flush=True)
     except Exception as e:
-        print(f"❌ Failed to load mural_master.csv: {e}", flush=True)
+        print(f"❌ Failed to load {csv_path}: {e}", flush=True)
 
     return eligible

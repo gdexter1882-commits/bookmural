@@ -10,6 +10,8 @@ os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
 app = Flask(__name__, static_folder="static")
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+CSV_PATH = "mural_master_regenerated.csv"
+
 # Load cdn_map.json once at startup
 try:
     with open("cdn_map.json", "r", encoding="utf-8") as f:
@@ -35,7 +37,7 @@ def get_murals():
         wall_height = float(data.get("wall_height", 0))
         print(f"📐 Received dimensions: {wall_width} x {wall_height}", flush=True)
 
-        eligible = get_eligible_texts(wall_width, wall_height)
+        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH)
 
         deduped = list({str(item): item for item in eligible}.values())
         print(f"🧾 Eligible mural count: {len(deduped)}")
