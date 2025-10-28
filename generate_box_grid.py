@@ -4,7 +4,6 @@ import time
 import requests
 from PIL import Image, ImageDraw
 from io import BytesIO
-from eligible_texts import slugify
 
 def draw_error_tile(width, height, page_num):
     tile = Image.new("RGB", (width, height), "#eeeeee")
@@ -66,7 +65,7 @@ def draw_grid(layout, output_dir, cdn_map):
         img.paste(page_img, (x, y))
     print(f"⏱️ Resize and paste took {time.time() - t1:.2f}s", flush=True)
 
-    filename = f"{slugify(handle)}_grid.png"
+    filename = f"{handle}_grid.png"
     out_path = os.path.join(output_dir, filename)
 
     print("⏱️ Saving image...", flush=True)
