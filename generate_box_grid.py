@@ -39,7 +39,9 @@ def draw_grid(handle, layout, output_dir, pages, cdn_map):
 
         page_num = idx + 1
         rel_path = f"{handle}/page_{page_num:03}.jpg"
-        url = cdn_map.get(rel_path)
+
+        # 🔍 Match by suffix
+        url = next((v for k, v in cdn_map.items() if k.endswith(rel_path)), None)
 
         print(f"🔍 Looking for {rel_path} in cdn_map", flush=True)
 
