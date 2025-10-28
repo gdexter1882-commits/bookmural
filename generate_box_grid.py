@@ -1,12 +1,10 @@
 import os
 import re
 import unicodedata
-import json
 import requests
 from PIL import Image
 from io import BytesIO
 
-CDN_MAP_PATH = "cdn_map.json"
 STATIC_ROOT = "static/previews"
 
 def slugify(text):
@@ -19,7 +17,7 @@ def slugify(text):
     return text.lower().strip("-")
 
 def draw_grid(handle, layout, output_dir, pages, cdn_map):
-    cols, rows = map(int, layout["grid"].split("x"))
+    rows, cols = map(int, layout["grid"].split("x"))  # ✅ Corrected: rows first
     pw = int(layout["page_w"] * 10)
     ph = int(layout["page_h"] * 10)
     margin_x = int(layout["margin_x"] * 10)
@@ -42,6 +40,11 @@ def draw_grid(handle, layout, output_dir, pages, cdn_map):
         page_num = idx + 1
         rel_path = f"{handle}/page_{page_num:03}.jpg"
         url = cdn_map.get(rel_path)
+
+        print(f"🔍 Looking for {rel_path} in cdn_map", flush=True)
+
+        if url is None:
+            print(f"⚠️ CDN map missing: {rel_path}", flush=True)
 
         try:
             response = requests.get(url)
