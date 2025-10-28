@@ -34,6 +34,8 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                         return {
                             "eligible": True,
                             "grid": f"{rows}x{cols}",
+                            "rows": rows,
+                            "cols": cols,
                             "scale_pct": scale_pct,
                             "row_gap": row_gap,
                             "margin_x": round(margin_x, 2),
