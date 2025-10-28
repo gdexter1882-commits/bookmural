@@ -11,7 +11,7 @@ def draw_error_tile(width, height, page_num):
     draw.text((width // 2 - 10, height // 2 - 10), f"X{page_num}", fill="red")
     return tile
 
-def fetch_image(url, timeout=3):
+def fetch_image(url, timeout=6):
     try:
         response = requests.get(url, timeout=timeout)
         return Image.open(BytesIO(response.content)).convert("RGB")
@@ -39,14 +39,14 @@ def draw_grid(layout, output_dir, cdn_map):
     page_urls = []
     for page in pages:
         rel_path = page["rel_path"]
-        if rel_path in cdn_map:
-            page_urls.append(cdn_map[rel_path])
-        else:
-            page_urls.append(None)
+        page_urls.append(cdn_map.get(rel_path))
 
     # Fetch images in parallel
     with ThreadPoolExecutor(max_workers=8) as executor:
         fetched_images = list(executor.map(lambda url: fetch_image(url) if url else None, page_urls))
+
+    success_count = sum(1 for img in fetched_images if img)
+    print(f"🧩 Successfully fetched {success_count} of {len(fetched_images)} pages", flush=True)
 
     # Paste images into grid
     for idx, page in enumerate(pages):
@@ -66,5 +66,8 @@ def draw_grid(layout, output_dir, cdn_map):
     # Save output
     filename = f"{handle}_grid.png"
     out_path = os.path.join(output_dir, filename)
-    img.save(out_path)
-    print(f"✅ Grid saved: {out_path}", flush=True)
+    try:
+        img.save(out_path)
+        print(f"✅ Grid saved: {out_path}", flush=True)
+    except Exception as e:
+        print(f"❌ Failed to save grid: {e}", flush=True)
