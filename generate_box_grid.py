@@ -1,6 +1,4 @@
 import os
-import sys
-import csv
 import re
 import unicodedata
 import json
@@ -9,7 +7,6 @@ from PIL import Image
 from io import BytesIO
 
 CDN_MAP_PATH = "cdn_map.json"
-CSV_PATH = "mural_master_regenerated.csv"
 STATIC_ROOT = "static/previews"
 
 def slugify(text):
@@ -20,10 +17,6 @@ def slugify(text):
     text = re.sub(r"[^\w\s-]", "", text)
     text = re.sub(r"[\s_-]+", "-", text)
     return text.lower().strip("-")
-
-def select_best_layout(wall_w, wall_h, page_w, page_h, pages):
-    # Placeholder — implement layout logic here
-    ...
 
 def draw_grid(handle, layout, output_dir, pages, cdn_map):
     cols, rows = map(int, layout["grid"].split("x"))
@@ -55,7 +48,8 @@ def draw_grid(handle, layout, output_dir, pages, cdn_map):
             page_img = Image.open(BytesIO(response.content)).convert("RGB")
             page_img = page_img.resize((pw, ph), Image.LANCZOS)
             img.paste(page_img, (x, y))
-        except:
+        except Exception as e:
+            print(f"⚠️ Failed to load {rel_path}: {e}", flush=True)
             blank = Image.new("RGB", (pw, ph), "white")
             img.paste(blank, (x, y))
 
@@ -63,7 +57,3 @@ def draw_grid(handle, layout, output_dir, pages, cdn_map):
     out_path = os.path.join(output_dir, f"{slugify(handle)}_grid.png")
     img.save(out_path)
     print(f"✅ Saved: {out_path}")
-
-def main():
-    # Placeholder — implement CLI or batch logic here
-    ...

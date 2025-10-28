@@ -14,9 +14,42 @@ def slugify(text):
     text = re.sub(r"[\s_-]+", "-", text)
     return text.lower().strip("-")
 
-def try_layout(wall_w, wall_h, page_w, page_h, pages):
-    # Placeholder — replace with actual layout logic
-    return {"eligible": True, "grid": "3x3", "scale_pct": 100}
+def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
+    for margin_test in range(5, 16):
+        usable_w = wall_w - 2 * margin_test
+        usable_h = wall_h - 2 * margin_test
+
+        for scale_pct in range(95, 106):
+            scaled_pw = page_w * scale_pct / 100
+            scaled_ph = page_h * scale_pct / 100
+
+            for row_gap in range(1, 6):
+                for cols in range(1, pages + 1):
+                    rows = (pages + cols - 1) // cols
+
+                    mural_w = cols * scaled_pw
+                    mural_h = rows * scaled_ph + (rows - 1) * row_gap
+
+                    if mural_w <= usable_w and mural_h <= usable_h:
+                        margin_x = (wall_w - mural_w) / 2
+                        margin_y = (wall_h - mural_h) / 2
+
+                        if not (5 <= margin_x <= 15 and 5 <= margin_y <= 15):
+                            continue
+
+                        return {
+                            "eligible": True,
+                            "grid": f"{rows}x{cols}",
+                            "scale_pct": scale_pct,
+                            "row_gap": row_gap,
+                            "margin_x": round(margin_x, 2),
+                            "margin_y": round(margin_y, 2),
+                            "page_w": round(scaled_pw, 2),
+                            "page_h": round(scaled_ph, 2),
+                            "text_centered": True
+                        }
+
+    return {"eligible": False}
 
 def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH):
     eligible = []
@@ -48,7 +81,9 @@ def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH):
                             "scale": layout.get("scale_pct"),
                             "thumbnail": thumbnail_url,
                             "pages": pages,
-                            "aspect_ratio": aspect_ratio
+                            "aspect_ratio": aspect_ratio,
+                            "page_w": width_cm,
+                            "page_h": height_cm
                         })
                 except Exception as e:
                     print(f"⚠️ Skipping row due to error: {e}", flush=True)

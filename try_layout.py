@@ -33,11 +33,13 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
 
                         return {
                             "eligible": True,
-                            "grid": f"{rows}x{cols}",  # ✅ Corrected: rows first
+                            "grid": f"{rows}x{cols}",
                             "scale_pct": scale_pct,
                             "row_gap": row_gap,
                             "margin_x": round(margin_x, 2),
                             "margin_y": round(margin_y, 2),
+                            "page_w": round(scaled_pw, 2),
+                            "page_h": round(scaled_ph, 2),
                             "text_centered": True
                         }
 

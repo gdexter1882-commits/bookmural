@@ -73,7 +73,7 @@ def accurate_grid():
         if not mural:
             return jsonify({"error": "Mural not found"}), 404
 
-        layout = try_layout(wall_width, wall_height, mural["aspect_ratio"] * mural["pages"], 100, mural["pages"])
+        layout = try_layout(wall_width, wall_height, mural["page_w"], mural["page_h"], mural["pages"])
         if not layout.get("eligible"):
             return jsonify({"error": "Layout not eligible"}), 400
 
