@@ -1,7 +1,7 @@
 def get_eligible_texts(wall_width, wall_height):
     eligible = []
     base_url = "https://mediumresfacsimiles.r2.cloudflarestorage.com/thumbnails"
-    csv_path = "mural_master.csv"
+    csv_path = "mural_master_regenerated.csv"
 
     try:
         with open(csv_path, newline="", encoding="utf-8") as csvfile:
