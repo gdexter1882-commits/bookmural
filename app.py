@@ -4,7 +4,7 @@ import io
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from eligible_texts import get_eligible_texts, try_layout, slugify
-from generate_box_grid import draw_grid  # Will rename to draw_grid_image
+from generate_box_grid import draw_grid_image  # Updated import to match function name
 
 os.environ["FLASK_RUN_HOST"] = "0.0.0.0"
 os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
@@ -103,7 +103,7 @@ def serve_grid(handle):
             return jsonify({"error": "Layout not eligible"}), 400
 
         # Generate image in memory
-        img = draw_grid_image(mural, layout, cdn_map)  # Assuming renamed function that returns PIL Image
+        img = draw_grid_image(mural, layout, cdn_map)  # Updated to call draw_grid_image
 
         output = io.BytesIO()
         img.save(output, format="PNG")
