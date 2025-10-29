@@ -3,7 +3,6 @@ import unicodedata
 import re
 
 CSV_PATH = "mural_master_regenerated.csv"
-BASE_URL = "https://mediumresfacsimiles.r2.cloudflarestorage.com/thumbnails"
 
 def slugify(text):
     if not isinstance(text, str):
@@ -73,11 +72,10 @@ def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=None)
 
                     if layout.get("eligible"):
                         rel_path = f"{handle}/page_001.jpg"
-                        thumbnail_url = next((v for k, v in cdn_map.items() if k.endswith(rel_path)), None)
+                        thumbnail_url = cdn_map.get(rel_path)
 
                         if not thumbnail_url:
-                            print(f"⚠️ Thumbnail not found in cdn_map for {rel_path}", flush=True)
-                            thumbnail_url = f"{BASE_URL}/{handle}/page_001.jpg"
+                            print(f"⚠️ Thumbnail not found in cdn_map for exact key: {rel_path}", flush=True)
 
                         eligible.append({
                             "title": title,
@@ -85,7 +83,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=None)
                             "slug": slugify(handle),
                             "grid": layout.get("grid"),
                             "scale": layout.get("scale_pct"),
-                            "thumbnail": thumbnail_url,
+                            "thumbnail": thumbnail_url or "",
                             "pages": pages,
                             "aspect_ratio": aspect_ratio,
                             "page_w": width_cm,
