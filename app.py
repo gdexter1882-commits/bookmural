@@ -38,7 +38,7 @@ def get_murals():
         wall_height = float(data.get("wall_height", 0))
         print(f"📐 Received dimensions: {wall_width} x {wall_height}", flush=True)
 
-        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH)
+        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
 
         deduped = list({str(item): item for item in eligible}.values())
         print(f"🧾 Eligible mural count: {len(deduped)}")
@@ -68,7 +68,7 @@ def accurate_grid():
 
         print(f"🧮 Generating grid for {handle} at {wall_width} x {wall_height}", flush=True)
 
-        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH)
+        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
         mural = next((m for m in eligible if m["handle"] == handle), None)
         if not mural:
             return jsonify({"error": "Mural not found"}), 404

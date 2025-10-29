@@ -51,7 +51,7 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
 
     return {"eligible": False}
 
-def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH):
+def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=None):
     eligible = []
 
     try:
@@ -72,7 +72,13 @@ def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH):
                     layout = try_layout(wall_width, wall_height, width_cm, height_cm, pages)
 
                     if layout.get("eligible"):
-                        thumbnail_url = f"{BASE_URL}/{handle}/page_001.jpg"
+                        rel_path = f"{handle}/page_001.jpg"
+                        thumbnail_url = next((v for k, v in cdn_map.items() if k.endswith(rel_path)), None)
+
+                        if not thumbnail_url:
+                            print(f"⚠️ Thumbnail not found in cdn_map for {rel_path}", flush=True)
+                            thumbnail_url = f"{BASE_URL}/{handle}/page_001.jpg"
+
                         eligible.append({
                             "title": title,
                             "handle": handle,
