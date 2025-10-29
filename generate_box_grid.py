@@ -16,7 +16,7 @@ def draw_error_tile(width, height, page_num):
     draw.text((width // 2 - 10, height // 2 - 10), f"X{page_num}", fill="red")
     return tile
 
-def fetch_image(url, timeout=10):
+def fetch_image(url, timeout=30):
     if not url:
         return None
     session = requests.Session()
@@ -24,6 +24,7 @@ def fetch_image(url, timeout=10):
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
+    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'})
     try:
         response = session.get(url, timeout=timeout)
         response.raise_for_status()
@@ -60,8 +61,8 @@ def draw_grid_image(mural, layout, cdn_map):
             print(f"⚠️ CDN map missing: {rel_path}", flush=True)
         page_urls.append(url)
 
-    # Fetch images in parallel
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    # Fetch images in parallel with reduced workers
+    with ThreadPoolExecutor(max_workers=4) as executor:
         fetched_images = list(executor.map(fetch_image, page_urls))
 
     success_count = sum(1 for img in fetched_images if img)
