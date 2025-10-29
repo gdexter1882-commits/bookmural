@@ -5,18 +5,7 @@ import requests
 from PIL import Image, ImageDraw
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
-from eligible_texts import slugify  # For filename
-
-STATIC_ROOT = "static/previews"
-
-def slugify(text):
-    if not isinstance(text, str):
-        return ""
-    text = unicodedata.normalize("NFKD", text)
-    text = text.encode("ascii", "ignore").decode("ascii")
-    text = re.sub(r"[^\w\s-]", "", text)
-    text = re.sub(r"[\s_-]+", "-", text)
-    return text.lower().strip("-")
+from eligible_texts import slugify  # For consistency
 
 def draw_error_tile(width, height, page_num):
     tile = Image.new("RGB", (width, height), "#eeeeee")
@@ -35,7 +24,7 @@ def fetch_image(url, timeout=6):
         print(f"⚠️ Failed to fetch {url}: {e}", flush=True)
         return None
 
-def draw_grid(mural, layout, output_dir, cdn_map):
+def draw_grid_image(mural, layout, cdn_map):
     handle = mural["handle"]
     pages = mural["pages"]
     folder = mural["folder"]
@@ -85,7 +74,4 @@ def draw_grid(mural, layout, output_dir, cdn_map):
 
         img.paste(page_img, (x, y))
 
-    os.makedirs(output_dir, exist_ok=True)
-    out_path = os.path.join(output_dir, f"{slugify(handle)}_grid.png")
-    img.save(out_path)
-    print(f"✅ Saved: {out_path}")
+    return img  # Return the PIL Image instead of saving

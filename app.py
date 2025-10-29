@@ -1,9 +1,10 @@
 import os
 import json
-from flask import Flask, request, jsonify
+import io
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from eligible_texts import get_eligible_texts, try_layout, slugify
-from generate_box_grid import draw_grid
+from generate_box_grid import draw_grid  # Will rename to draw_grid_image
 
 os.environ["FLASK_RUN_HOST"] = "0.0.0.0"
 os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
@@ -66,7 +67,7 @@ def accurate_grid():
         wall_width = float(data.get("wall_width", 0))
         wall_height = float(data.get("wall_height", 0))
 
-        print(f"🧮 Generating grid for {handle} at {wall_width} x {wall_height}", flush=True)
+        print(f"🧮 Computing layout for {handle} at {wall_width} x {wall_height}", flush=True)
 
         eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
         mural = next((m for m in eligible if m["handle"] == handle), None)
@@ -77,13 +78,40 @@ def accurate_grid():
         if not layout.get("eligible"):
             return jsonify({"error": "Layout not eligible"}), 400
 
-        output_dir = os.path.join("static", "previews")
-        draw_grid(mural, layout, output_dir, cdn_map)  # Updated: pass mural instead of mural["pages"]
-
-        filename = f"{slugify(handle)}_grid.png"
-        return jsonify({"grid_url": f"static/previews/{filename}"})
+        # Return the dynamic grid URL instead of generating file
+        grid_url = f"/api/grid/{slugify(handle)}?w={wall_width}&h={wall_height}"
+        return jsonify({"grid_url": grid_url})
     except Exception as e:
         print(f"❌ Error in /api/accurate-grid: {e}", flush=True)
+        return jsonify({"error": "Grid generation failed"}), 500
+
+@app.route("/api/grid/<handle>", methods=["GET"])
+def serve_grid(handle):
+    try:
+        wall_width = float(request.args.get("w", 0))
+        wall_height = float(request.args.get("h", 0))
+
+        print(f"🧮 Generating grid image for {handle} at {wall_width} x {wall_height}", flush=True)
+
+        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
+        mural = next((m for m in eligible if m["handle"] == handle), None)
+        if not mural:
+            return jsonify({"error": "Mural not found"}), 404
+
+        layout = try_layout(wall_width, wall_height, mural["page_w"], mural["page_h"], mural["pages"])
+        if not layout.get("eligible"):
+            return jsonify({"error": "Layout not eligible"}), 400
+
+        # Generate image in memory
+        img = draw_grid_image(mural, layout, cdn_map)  # Assuming renamed function that returns PIL Image
+
+        output = io.BytesIO()
+        img.save(output, format="PNG")
+        output.seek(0)
+
+        return send_file(output, mimetype="image/png")
+    except Exception as e:
+        print(f"❌ Error in /api/grid: {e}", flush=True)
         return jsonify({"error": "Grid generation failed"}), 500
 
 if __name__ == "__main__":
