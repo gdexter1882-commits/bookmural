@@ -2,13 +2,11 @@
 import os
 import re
 import unicodedata
-import requests
+import aiohttp
+import asyncio
 from PIL import Image, ImageDraw
 from io import BytesIO
-from concurrent.futures import ThreadPoolExecutor
 from eligible_texts import slugify  # For consistency
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 
 def draw_error_tile(width, height, page_num):
     tile = Image.new("RGB", (width, height), "#eeeeee")
@@ -16,24 +14,19 @@ def draw_error_tile(width, height, page_num):
     draw.text((width // 2 - 10, height // 2 - 10), f"X{page_num}", fill="red")
     return tile
 
-def fetch_image(url, timeout=30):
+async def fetch_image(session, url, timeout=30):
     if not url:
         return None
-    session = requests.Session()
-    retry = Retry(connect=3, backoff_factor=0.5)
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'})
     try:
-        response = session.get(url, timeout=timeout)
-        response.raise_for_status()
-        return Image.open(BytesIO(response.content)).convert("RGB")
+        async with session.get(url, timeout=timeout) as response:
+            response.raise_for_status()
+            content = await response.read()
+            return Image.open(BytesIO(content)).convert("RGB")
     except Exception as e:
         print(f"⚠️ Failed to fetch {url}: {e}", flush=True)
         return None
 
-def draw_grid_image(mural, layout, cdn_map):
+async def draw_grid_image(mural, layout, cdn_map):
     handle = mural["handle"]
     pages = mural["pages"]
     folder = mural["folder"]
@@ -61,9 +54,10 @@ def draw_grid_image(mural, layout, cdn_map):
             print(f"⚠️ CDN map missing: {rel_path}", flush=True)
         page_urls.append(url)
 
-    # Fetch images in parallel with reduced workers
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        fetched_images = list(executor.map(fetch_image, page_urls))
+    # Fetch images asynchronously
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_image(session, url) for url in page_urls]
+        fetched_images = await asyncio.gather(*tasks)
 
     success_count = sum(1 for img in fetched_images if img)
     print(f"🧩 Successfully fetched {success_count} of {len(fetched_images)} pages", flush=True)
