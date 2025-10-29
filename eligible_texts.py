@@ -10,8 +10,8 @@ def slugify(text):
     text = unicodedata.normalize("NFKD", text)
     text = text.encode("ascii", "ignore").decode("ascii")
     text = re.sub(r"[^\w\s-]", "", text)
-    text = re.sub(r"[\s_-]+", "-", text)
-    return text.lower().strip("-")
+    text = re.sub(r"[\s-]+", "_", text)  # Match CSV underscore style
+    return text.lower().strip("_")
 
 def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
     for margin_test in range(5, 16):
@@ -71,12 +71,19 @@ def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=None)
                     layout = try_layout(wall_width, wall_height, width_cm, height_cm, pages)
 
                     if layout.get("eligible"):
-                        # Match slugified handle to unslugified key in cdn_map
-                        thumbnail_url = next(
-                            (url for key, url in cdn_map.items()
-                             if key.lower().endswith("page_001.jpg") and slugify(key.rsplit("/", 1)[0]) == handle),
-                            None
-                        )
+                        # Compute exact CDN folder by removing " pages" from title suffix
+                        folder = title.rsplit(" (", 1)[0] + f" ({pages})"
+
+                        # Forensic thumbnail lookup
+                        print(f"🔍 Attempting to match handle: {handle}", flush=True)
+                        thumbnail_url = None
+                        for key, url in cdn_map.items():
+                            key_folder = key.rsplit("/", 1)[0]
+                            slug = slugify(key_folder)
+                            if slug == handle and key.lower().endswith("page_001.jpg"):
+                                thumbnail_url = url
+                                print(f"✅ Matched thumbnail: {key}", flush=True)
+                                break
 
                         if not thumbnail_url:
                             print(f"⚠️ Thumbnail not found in cdn_map for slugified handle: {handle}", flush=True)
@@ -91,7 +98,8 @@ def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=None)
                             "pages": pages,
                             "aspect_ratio": aspect_ratio,
                             "page_w": width_cm,
-                            "page_h": height_cm
+                            "page_h": height_cm,
+                            "folder": folder  # New: exact CDN folder for efficient lookups
                         })
                 except Exception as e:
                     print(f"⚠️ Skipping row due to error: {e}", flush=True)
