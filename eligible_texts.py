@@ -71,11 +71,15 @@ def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=None)
                     layout = try_layout(wall_width, wall_height, width_cm, height_cm, pages)
 
                     if layout.get("eligible"):
-                        rel_path = f"{handle}/page_001.jpg"
-                        thumbnail_url = cdn_map.get(rel_path)
+                        # Match slugified handle to unslugified key in cdn_map
+                        thumbnail_url = next(
+                            (url for key, url in cdn_map.items()
+                             if key.endswith("Page_001.jpg") and slugify(key.split("/")[0]) == handle),
+                            None
+                        )
 
                         if not thumbnail_url:
-                            print(f"⚠️ Thumbnail not found in cdn_map for exact key: {rel_path}", flush=True)
+                            print(f"⚠️ Thumbnail not found in cdn_map for slugified handle: {handle}", flush=True)
 
                         eligible.append({
                             "title": title,
