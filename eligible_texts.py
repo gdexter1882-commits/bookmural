@@ -74,7 +74,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=None)
                         # Match slugified handle to unslugified key in cdn_map
                         thumbnail_url = next(
                             (url for key, url in cdn_map.items()
-                             if key.endswith("Page_001.jpg") and slugify(key.split("/")[0]) == handle),
+                             if key.lower().endswith("page_001.jpg") and slugify(key.rsplit("/", 1)[0]) == handle),
                             None
                         )
 
