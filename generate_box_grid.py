@@ -1,3 +1,4 @@
+# generate_box_grid.py
 import os
 import re
 import unicodedata
@@ -6,6 +7,8 @@ from PIL import Image, ImageDraw
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 from eligible_texts import slugify  # For consistency
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 def draw_error_tile(width, height, page_num):
     tile = Image.new("RGB", (width, height), "#eeeeee")
@@ -13,11 +16,16 @@ def draw_error_tile(width, height, page_num):
     draw.text((width // 2 - 10, height // 2 - 10), f"X{page_num}", fill="red")
     return tile
 
-def fetch_image(url, timeout=6):
+def fetch_image(url, timeout=10):
     if not url:
         return None
+    session = requests.Session()
+    retry = Retry(connect=3, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
     try:
-        response = requests.get(url, timeout=timeout)
+        response = session.get(url, timeout=timeout)
         response.raise_for_status()
         return Image.open(BytesIO(response.content)).convert("RGB")
     except Exception as e:
