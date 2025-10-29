@@ -1,0 +1,10 @@
+# render.yaml
+services:
+  - type: web
+    name: bookmural
+    env: python
+    region: oregon          # optional – change if you want a different region
+    plan: starter           # or "standard" / "pro" if you upgrade
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true

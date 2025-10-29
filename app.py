@@ -1,120 +1,118 @@
+# app.py
 import os
 import json
 import io
-from flask import Flask, request, jsonify, send_file
-from flask_cors import CORS
+from quart import Quart, request, jsonify, send_file
+from quart_cors import cors
 from eligible_texts import get_eligible_texts, try_layout, slugify
-from generate_box_grid import draw_grid_image  # Updated import to match function name
+from generate_box_grid import draw_grid_image
+import asyncio
 
-os.environ["FLASK_RUN_HOST"] = "0.0.0.0"
-os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
-
-app = Flask(__name__, static_folder="static")
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+app = Quart(__name__)
+app = cors(app, allow_origin="*")          # same as Flask-CORS
 
 CSV_PATH = "mural_master_regenerated.csv"
 
-# Load cdn_map.json once at startup
+# ----------------------------------------------------------------------
+# Load CDN map once at start-up
+# ----------------------------------------------------------------------
 try:
     with open("cdn_map.json", "r", encoding="utf-8") as f:
         cdn_map = json.load(f)
-    print(f"🗺️ Loaded cdn_map.json with {len(cdn_map)} entries", flush=True)
+    print(f"Loaded cdn_map.json with {len(cdn_map)} entries", flush=True)
 except Exception as e:
     cdn_map = {}
-    print(f"⚠️ Failed to load cdn_map.json: {e}", flush=True)
+    print(f"Failed to load cdn_map.json: {e}", flush=True)
 
+
+# ----------------------------------------------------------------------
+# Simple health / index
+# ----------------------------------------------------------------------
 @app.route("/")
-def index():
+async def index():
     return "Mural API is running", 200
 
 @app.route("/health")
-def health():
+async def health():
     return "OK", 200
 
+
+# ----------------------------------------------------------------------
+# /api/murals – unchanged (still sync, fine)
+# ----------------------------------------------------------------------
 @app.route("/api/murals", methods=["POST"])
-def get_murals():
-    try:
-        data = request.get_json()
-        wall_width = float(data.get("wall_width", 0))
-        wall_height = float(data.get("wall_height", 0))
-        print(f"📐 Received dimensions: {wall_width} x {wall_height}", flush=True)
+async def get_murals():
+    data = await request.get_json()
+    wall_width = float(data.get("wall_width", 0))
+    wall_height = float(data.get("wall_height", 0))
+    print(f"Received dimensions: {wall_width} x {wall_height}", flush=True)
 
-        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
+    eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
 
-        deduped = list({str(item): item for item in eligible}.values())
-        print(f"🧾 Eligible mural count: {len(deduped)}")
-        for i, mural in enumerate(deduped):
-            print(f"{i+1}. {mural}", flush=True)
+    deduped = list({str(item): item for item in eligible}.values())
+    print(f"Eligible mural count: {len(deduped)}")
+    return jsonify({"eligible": deduped})
 
-        return jsonify({"eligible": deduped})
-    except Exception as e:
-        print(f"❌ Error in /api/murals: {e}", flush=True)
-        return jsonify({"error": "Internal server error"}), 500
 
-@app.route("/api/cdn-map", methods=["GET"])
-def get_cdn_map():
-    try:
-        return jsonify(cdn_map)
-    except Exception as e:
-        print(f"❌ Error in /api/cdn-map: {e}", flush=True)
-        return jsonify({"error": "Failed to load CDN map"}), 500
-
+# ----------------------------------------------------------------------
+# /api/accurate-grid – returns a *dynamic* URL that points to the async endpoint
+# ----------------------------------------------------------------------
 @app.route("/api/accurate-grid", methods=["POST"])
-def accurate_grid():
-    try:
-        data = request.get_json()
-        handle = data.get("handle")
-        wall_width = float(data.get("wall_width", 0))
-        wall_height = float(data.get("wall_height", 0))
+async def accurate_grid():
+    data = await request.get_json()
+    handle = data.get("handle")
+    wall_width = float(data.get("wall_width", 0))
+    wall_height = float(data.get("wall_height", 0))
 
-        print(f"🧮 Computing layout for {handle} at {wall_width} x {wall_height}", flush=True)
+    print(f"Computing layout for {handle} at {wall_width} x {wall_height}", flush=True)
 
-        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
-        mural = next((m for m in eligible if m["handle"] == handle), None)
-        if not mural:
-            return jsonify({"error": "Mural not found"}), 404
+    eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
+    mural = next((m for m in eligible if m["handle"] == handle), None)
+    if not mural:
+        return jsonify({"error": "Mural not found"}), 404
 
-        layout = try_layout(wall_width, wall_height, mural["page_w"], mural["page_h"], mural["pages"])
-        if not layout.get("eligible"):
-            return jsonify({"error": "Layout not eligible"}), 400
+    layout = try_layout(wall_width, wall_height, mural["page_w"], mural["page_h"], mural["pages"])
+    if not layout.get("eligible"):
+        return jsonify({"error": "Layout not eligible"}), 400
 
-        # Return the dynamic grid URL instead of generating file
-        grid_url = f"/api/grid/{slugify(handle)}?w={wall_width}&h={wall_height}"
-        return jsonify({"grid_url": grid_url})
-    except Exception as e:
-        print(f"❌ Error in /api/accurate-grid: {e}", flush=True)
-        return jsonify({"error": "Grid generation failed"}), 500
+    grid_url = f"/api/grid/{slugify(handle)}?w={wall_width}&h={wall_height}"
+    return jsonify({"grid_url": grid_url})
 
-@app.route("/api/grid/<handle>", methods=["GET"])
-def serve_grid(handle):
-    try:
-        wall_width = float(request.args.get("w", 0))
-        wall_height = float(request.args.get("h", 0))
 
-        print(f"🧮 Generating grid image for {handle} at {wall_width} x {wall_height}", flush=True)
+# ----------------------------------------------------------------------
+# /api/grid/<handle> – **ASYNC** image generator
+# ----------------------------------------------------------------------
+@app.route("/api/grid/<handle>")
+async def serve_grid(handle):
+    wall_width = float(request.args.get("w", 0))
+    wall_height = float(request.args.get("h", 0))
 
-        eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
-        mural = next((m for m in eligible if m["handle"] == handle), None)
-        if not mural:
-            return jsonify({"error": "Mural not found"}), 404
+    print(f"Generating grid for {handle} at {wall_width} x {wall_height}", flush=True)
 
-        layout = try_layout(wall_width, wall_height, mural["page_w"], mural["page_h"], mural["pages"])
-        if not layout.get("eligible"):
-            return jsonify({"error": "Layout not eligible"}), 400
+    eligible = get_eligible_texts(wall_width, wall_height, csv_path=CSV_PATH, cdn_map=cdn_map)
+    mural = next((m for m in eligible if m["handle"] == handle), None)
+    if not mural:
+        return jsonify({"error": "Mural not found"}), 404
 
-        # Generate image in memory
-        img = draw_grid_image(mural, layout, cdn_map)  # Updated to call draw_grid_image
+    layout = try_layout(wall_width, wall_height, mural["page_w"], mural["page_h"], mural["pages"])
+    if not layout.get("eligible"):
+        return jsonify({"error": "Layout not eligible"}), 400
 
-        output = io.BytesIO()
-        img.save(output, format="PNG")
-        output.seek(0)
+    # ---- ASYNC IMAGE CREATION ----
+    img = await draw_grid_image(mural, layout, cdn_map)
 
-        return send_file(output, mimetype="image/png")
-    except Exception as e:
-        print(f"❌ Error in /api/grid: {e}", flush=True)
-        return jsonify({"error": "Grid generation failed"}), 500
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return await send_file(buf, mimetype="image/png")
 
+
+# ----------------------------------------------------------------------
+# Run with Uvicorn (Render uses this command)
+# ----------------------------------------------------------------------
 if __name__ == "__main__":
+    # When you run locally:
+    #   uvicorn app:app --host 0.0.0.0 --port 5000
+    import uvicorn
     port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Starting Flask on 0.0.0.0:{port}", flush=True)
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    uvicorn.run(app, host="0.0.0.0", port=port)
