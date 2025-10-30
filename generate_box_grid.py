@@ -128,11 +128,11 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     return img
 
 
-# --- Main entry point for grid generation (This is the missing function) ---
-async def draw_grid(handle: str, layout: dict, output_dir: str, pages: int, cdn_map: dict):
+# --- Main entry point for grid generation (FIXED SIGNATURE) ---
+async def draw_grid(handle: str, layout: dict, folder: str, pages: int, cdn_map: dict):
     """Generates the grid image and uploads it to R2."""
     mural = {
-        "folder": layout["folder"],
+        "folder": folder, # FIX: Use the 'folder' argument
         "pages": pages,
         "page_w": layout["page_w"],
         "page_h": layout["page_h"],

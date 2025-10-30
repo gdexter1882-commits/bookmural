@@ -66,7 +66,7 @@ def accurate_grid():
 
         print(f"🧮 Generating grid for {handle} at {wall_width} x {wall_height}", flush=True)
 
-        # Re-run eligibility and layout calculation (This is the redundancy we can tackle later with caching)
+        # Re-run eligibility and layout calculation
         eligible = get_eligible_texts(
             wall_width,
             wall_height,
@@ -80,14 +80,14 @@ def accurate_grid():
         # Use the already calculated layout data
         layout = mural.get("layout_details")
         if not layout or not layout.get("eligible"):
-             # This should not happen if mural was found in eligible list, but for safety:
              return jsonify({"error": "Layout details not found or not eligible"}), 400
 
         # Run the async draw_grid function to generate and upload the image to R2
         grid_url = asyncio.run(draw_grid(
             handle, 
             layout, 
-            None, # output_dir argument is now ignored by draw_grid
+            mural["folder"], # FIX: Pass the folder name
+            None, # output_dir argument (still required for function signature, but unused)
             mural["pages"], 
             cdn_map
         ))
