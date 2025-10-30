@@ -1,9 +1,11 @@
+# app.py
 import os
 import json
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from eligible_texts import get_eligible_texts, try_layout, slugify
 from generate_box_grid import draw_grid
+import asyncio # NEW
 
 os.environ["FLASK_RUN_HOST"] = "0.0.0.0"
 os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
@@ -11,7 +13,7 @@ os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
 app = Flask(__name__, static_folder="static")
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-CSV_PATH = "mural_master_regenerated.csv"
+CSV_PATH = "mural_master_regenerated.csv" # Kept original path
 
 # Load cdn_map.json once at startup
 try:
@@ -36,7 +38,9 @@ def get_murals():
         data = request.get_json()
         wall_width = float(data.get("wall_width", 0))
         wall_height = float(data.get("wall_height", 0))
-        print(f"📐 Received dimensions: {wall_width} x {wall_height}", flush=True)
+
+        if wall_width <= 0 or wall_height <= 0:
+            return jsonify({"error": "Invalid dimensions"}), 400
 
         eligible = get_eligible_texts(
             wall_width,
@@ -44,35 +48,23 @@ def get_murals():
             csv_path=CSV_PATH,
             cdn_map=cdn_map
         )
-
-        deduped = list({str(item): item for item in eligible}.values())
-        print(f"🧾 Eligible mural count: {len(deduped)}")
-        for i, mural in enumerate(deduped):
-            print(f"{i+1}. {mural}", flush=True)
-
-        return jsonify({"eligible": deduped})
+        return jsonify({"eligible": eligible})
     except Exception as e:
         print(f"❌ Error in /api/murals: {e}", flush=True)
-        return jsonify({"error": "Internal server error"}), 500
-
-@app.route("/api/cdn-map", methods=["GET"])
-def get_cdn_map():
-    try:
-        return jsonify(cdn_map)
-    except Exception as e:
-        print(f"❌ Error in /api/cdn-map: {e}", flush=True)
-        return jsonify({"error": "Failed to load CDN map"}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/accurate-grid", methods=["POST"])
 def accurate_grid():
     try:
         data = request.get_json()
         handle = data.get("handle")
+        # NOTE: wall dimensions are not strictly needed here if layout is provided, but kept for robustness
         wall_width = float(data.get("wall_width", 0))
         wall_height = float(data.get("wall_height", 0))
 
         print(f"🧮 Generating grid for {handle} at {wall_width} x {wall_height}", flush=True)
 
+        # Re-run eligibility and layout calculation (This is the redundancy we can tackle later with caching)
         eligible = get_eligible_texts(
             wall_width,
             wall_height,
@@ -83,20 +75,30 @@ def accurate_grid():
         if not mural:
             return jsonify({"error": "Mural not found"}), 404
 
-        layout = try_layout(wall_width, wall_height, mural["page_w"], mural["page_h"], mural["pages"])
-        if not layout.get("eligible"):
-            return jsonify({"error": "Layout not eligible"}), 400
+        # Use the already calculated layout data
+        layout = mural.get("layout_details")
+        if not layout or not layout.get("eligible"):
+            # This should not happen if mural was found in eligible list, but for safety:
+             return jsonify({"error": "Layout details not found or not eligible"}), 400
 
-        output_dir = os.path.join("static", "previews")
-        draw_grid(handle, layout, output_dir, mural["pages"], cdn_map)
-
-        filename = f"{slugify(handle)}_grid.png"
-        return jsonify({"grid_url": f"static/previews/{filename}"})
+        # Run the async draw_grid function to generate and upload the image to R2
+        grid_url = asyncio.run(draw_grid(
+            handle, 
+            layout, 
+            None, # output_dir argument is now ignored by draw_grid
+            mural["pages"], 
+            cdn_map
+        ))
+        
+        if grid_url:
+            # Return the CDN URL directly
+            return jsonify({"grid_url": grid_url})
+        else:
+            return jsonify({"error": "Failed to generate or upload grid"}), 500
+            
     except Exception as e:
         print(f"❌ Error in /api/accurate-grid: {e}", flush=True)
-        return jsonify({"error": "Grid generation failed"}), 500
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Starting Flask on 0.0.0.0:{port}", flush=True)
-    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
+    app.run(debug=True, host=os.environ["FLASK_RUN_HOST"], port=int(os.environ["FLASK_RUN_PORT"]))
