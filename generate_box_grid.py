@@ -28,7 +28,7 @@ async def fetch_image(session: aiohttp.ClientSession, url: str, timeout: int = 3
         print(f"Failed to fetch {url}: {e}", flush=True)
         return None
 
-# --- R2 Upload Function (HTTPS FIX APPLIED) ---
+# --- R2 Upload Function (FINAL URL FIX APPLIED) ---
 def upload_to_r2(handle: str, image: Image.Image) -> str:
     """Saves the Pillow image to a BytesIO buffer and uploads it to R2/S3."""
     try:
@@ -61,14 +61,18 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
             }
         )
         
-        # Construct the public URL 
-        # 1. Clean up the endpoint to use the public .r2.dev domain
-        url_base = R2_ENDPOINT.replace('cloudflarestorage.com', 'r2.dev')
-        # 2. Strip any protocol if present
-        url_base = url_base.replace('http://', '').replace('https://', '')
+        # --- CRITICAL FIX: Correctly format the R2 public domain ---
+        # 1. Extract the Account ID from the R2_ENDPOINT_URL
+        # R2_ENDPOINT is e.g. https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+        account_id_part = R2_ENDPOINT.split('//')[-1].split('.')[0]
         
-        # 3. CRITICAL FIX: Explicitly prepend 'https://'
-        public_url = f"https://{url_base}/{BUCKET_NAME}/previews/{filename}"
+        # 2. Build the correct public R2 domain: <BUCKET>.<ACCOUNT_ID>.r2.dev
+        r2_domain = f"{BUCKET_NAME}.{account_id_part}.r2.dev"
+        
+        # 3. Construct the final public URL
+        public_url = f"https://{r2_domain}/previews/{filename}"
+
+        # --- End CRITICAL FIX ---
         
         print(f"☁️ Uploaded grid to R2: {public_url}", flush=True)
         return public_url
