@@ -28,7 +28,7 @@ async def fetch_image(session: aiohttp.ClientSession, url: str, timeout: int = 3
         print(f"Failed to fetch {url}: {e}", flush=True)
         return None
 
-# --- R2 Upload Function ---
+# --- R2 Upload Function (HTTPS FIX APPLIED) ---
 def upload_to_r2(handle: str, image: Image.Image) -> str:
     """Saves the Pillow image to a BytesIO buffer and uploads it to R2/S3."""
     try:
@@ -37,7 +37,7 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
         
         if not R2_ENDPOINT or not BUCKET_NAME:
             print("❌ R2 environment variables not set. Image generation will fail.", flush=True)
-            return ""
+            return "" 
 
         s3 = boto3.client(
             's3',
@@ -62,15 +62,19 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
         )
         
         # Construct the public URL 
-        # Assumes the public access URL pattern: https://<account_id>.r2.dev/<bucket_name>/...
+        # 1. Clean up the endpoint to use the public .r2.dev domain
         url_base = R2_ENDPOINT.replace('cloudflarestorage.com', 'r2.dev')
-        public_url = f"{url_base}/{BUCKET_NAME}/previews/{filename}"
+        # 2. Strip any protocol if present
+        url_base = url_base.replace('http://', '').replace('https://', '')
+        
+        # 3. CRITICAL FIX: Explicitly prepend 'https://'
+        public_url = f"https://{url_base}/{BUCKET_NAME}/previews/{filename}"
         
         print(f"☁️ Uploaded grid to R2: {public_url}", flush=True)
         return public_url
 
     except Exception as e:
-        print(f"❌ R2 Upload Failed: {e}", flush=True)
+        print(f"❌ R2 Upload Failed with Boto3 error: {e}", flush=True)
         return ""
 
 
@@ -94,7 +98,6 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     # Build URLs
     page_urls = []
     for i in range(pages):
-        # Use the 'folder' to construct the path for the CDN map lookup
         rel_path = f"{folder}/Page_{i+1:03}.jpg"
         url = cdn_map.get(rel_path)
         if not url:
