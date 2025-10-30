@@ -2,7 +2,7 @@ import csv
 import unicodedata
 import re
 import os 
-import urllib.parse # CRITICAL: New import to URL-encode the cover filename
+import urllib.parse # CRITICAL: For URL-encoding the cover filename
 
 CSV_PATH = "mural_master_regenerated.csv"
 
@@ -50,7 +50,7 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                         
                         # Calculate the margins that actually fit the wall (symmetric for centering)
                         margin_x = (wall_w - mural_w) / 2
-                        margin_y = (wall_h - mural_w) / 2
+                        margin_y = (wall_h - mural_h) / 2
                         
                         # ENFORCE MAXIMUM MARGIN: Ensure margins do not exceed 16cm
                         if margin_x <= 16 and margin_y <= 16:
@@ -95,18 +95,20 @@ def get_eligible_texts(wall_width, wall_height, csv_path, cdn_map):
 
                     aspect_ratio = width_cm / height_cm
 
+                    # This calls the complex, correct calculator logic
                     layout = try_layout(wall_width, wall_height, width_cm, height_cm, pages)
 
                     if layout.get("eligible"):
                         
-                        # Build the standard slug (used for the grid image generation)
                         slug = slugify(handle)
 
-                        # --- NEW FIX: Build the cover URL based on the Title format for R2 ---
+                        # --- COVER IMAGE URL FIX ---
                         if R2_PUBLIC_URL:
                             # 1. Strip the pages suffix (e.g., ' (235 pages)')
                             pages_suffix = f" ({pages} pages)" 
-                            base_title = title[:-len(pages_suffix)]
+                            base_title = title
+                            if base_title.endswith(pages_suffix):
+                                base_title = title[:-len(pages_suffix)]
                             
                             # 2. Construct the exact filename: 'x' + base_title + ' (235).jpg'
                             cover_filename = f"x{base_title} ({pages}).jpg" 
@@ -114,10 +116,12 @@ def get_eligible_texts(wall_width, wall_height, csv_path, cdn_map):
                             # 3. URL-encode the filename (due to spaces, commas, parentheses)
                             encoded_filename = urllib.parse.quote(cover_filename)
                             
-                            # 4. Construct the final URL
+                            # 4. Construct the final URL: {R2_PUBLIC_URL}/covers/{encoded_filename}
                             cover_url = f"{R2_PUBLIC_URL}/covers/{encoded_filename}"
                         else:
-                            cover_url = "" 
+                            # Fallback to the non-working Shopify URL if R2 is not configured
+                            cover_key = handle
+                            cover_url = f"https://cdn.shopify.com/s/files/1/0960/9930/3717/files/x{cover_key}.jpg"
                         
                         eligible.append({
                             "title": title,
