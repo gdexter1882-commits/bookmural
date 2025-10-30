@@ -8,7 +8,6 @@ from io import BytesIO
 from eligible_texts import slugify 
 
 # --- Configuration ---
-# Note: Preview scale is 10 pixels per centimetre (10x magnification for viewing)
 PREVIEW_SCALE_FACTOR = 10 
 
 def draw_error_tile(width: int, height: int, page_num: int) -> Image.Image:
@@ -33,7 +32,6 @@ async def fetch_image(session: aiohttp.ClientSession, url: str, timeout: int = 3
 def upload_to_r2(handle: str, image: Image.Image) -> str:
     """Saves the Pillow image to a BytesIO buffer and uploads it to R2/S3."""
     try:
-        # These values are read securely from Render's Environment Variables
         R2_ENDPOINT = os.environ.get('R2_ENDPOINT_URL')
         BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
         
@@ -64,6 +62,7 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
         )
         
         # Construct the public URL 
+        # Assumes the public access URL pattern: https://<account_id>.r2.dev/<bucket_name>/...
         url_base = R2_ENDPOINT.replace('cloudflarestorage.com', 'r2.dev')
         public_url = f"{url_base}/{BUCKET_NAME}/previews/{filename}"
         
@@ -95,6 +94,7 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     # Build URLs
     page_urls = []
     for i in range(pages):
+        # Use the 'folder' to construct the path for the CDN map lookup
         rel_path = f"{folder}/Page_{i+1:03}.jpg"
         url = cdn_map.get(rel_path)
         if not url:
@@ -128,11 +128,11 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     return img
 
 
-# --- Main entry point for grid generation (FIXED SIGNATURE) ---
+# --- Main entry point for grid generation (5 arguments) ---
 async def draw_grid(handle: str, layout: dict, folder: str, pages: int, cdn_map: dict):
     """Generates the grid image and uploads it to R2."""
     mural = {
-        "folder": folder, # FIX: Use the 'folder' argument
+        "folder": folder, 
         "pages": pages,
         "page_w": layout["page_w"],
         "page_h": layout["page_h"],

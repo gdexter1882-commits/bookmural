@@ -5,17 +5,16 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from eligible_texts import get_eligible_texts, try_layout, slugify
 from generate_box_grid import draw_grid
-import asyncio # NEW
+import asyncio
 
 os.environ["FLASK_RUN_HOST"] = "0.0.0.0"
 os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
 
 app = Flask(__name__, static_folder="static")
 
-# CRITICAL FIX: Explicitly set the allowed origin to resolve the CORS error
 CORS(app, resources={r"/api/*": {"origins": "https://smallestroom.com"}})
 
-CSV_PATH = "mural_master_regenerated.csv" # Kept original path
+CSV_PATH = "mural_master_regenerated.csv"
 
 # Load cdn_map.json once at startup
 try:
@@ -60,7 +59,6 @@ def accurate_grid():
     try:
         data = request.get_json()
         handle = data.get("handle")
-        # NOTE: wall dimensions are not strictly needed here if layout is provided, but kept for robustness
         wall_width = float(data.get("wall_width", 0))
         wall_height = float(data.get("wall_height", 0))
 
@@ -82,14 +80,13 @@ def accurate_grid():
         if not layout or not layout.get("eligible"):
              return jsonify({"error": "Layout details not found or not eligible"}), 400
 
-        # Run the async draw_grid function to generate and upload the image to R2
+        # Run the async draw_grid function, passing exactly 5 arguments
         grid_url = asyncio.run(draw_grid(
             handle, 
             layout, 
-            mural["folder"], # FIX: Pass the folder name
-            None, # output_dir argument (still required for function signature, but unused)
-            mural["pages"], 
-            cdn_map
+            mural["folder"],  # ARG 3: folder (was previously the extra argument)
+            mural["pages"],   # ARG 4: pages
+            cdn_map           # ARG 5: cdn_map
         ))
         
         if grid_url:
