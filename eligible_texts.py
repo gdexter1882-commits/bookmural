@@ -2,7 +2,7 @@ import csv
 import unicodedata
 import re
 import os 
-import urllib.parse # CRITICAL: For URL-encoding the cover filename
+import urllib.parse 
 
 CSV_PATH = "mural_master_regenerated.csv"
 
@@ -79,9 +79,6 @@ def get_eligible_texts(wall_width, wall_height, csv_path, cdn_map):
         print(f"⚠️ CSV file not found at: {csv_path}", flush=True)
         return eligible
 
-    if not R2_PUBLIC_URL:
-        print("⚠️ R2_PUBLIC_URL environment variable not set. Cover images will fail.", flush=True)
-
     try:
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
@@ -95,31 +92,34 @@ def get_eligible_texts(wall_width, wall_height, csv_path, cdn_map):
 
                     aspect_ratio = width_cm / height_cm
 
-                    # This calls the complex, correct calculator logic
                     layout = try_layout(wall_width, wall_height, width_cm, height_cm, pages)
 
                     if layout.get("eligible"):
                         
                         slug = slugify(handle)
 
-                        # --- COVER IMAGE URL FIX ---
+                        # --- COVER IMAGE URL FIX (Uses Title field) ---
                         if R2_PUBLIC_URL:
-                            # 1. Strip the pages suffix (e.g., ' (235 pages)')
-                            pages_suffix = f" ({pages} pages)" 
-                            base_title = title
-                            if base_title.endswith(pages_suffix):
-                                base_title = title[:-len(pages_suffix)]
+                            # 1. Regex pattern to find and capture the page count in parenthesis
+                            # This handles: "Title... (235 pages)"
+                            pages_suffix_pattern = r'\s?\((\d+)\s+pages\)$'
                             
-                            # 2. Construct the exact filename: 'x' + base_title + ' (235).jpg'
-                            cover_filename = f"x{base_title} ({pages}).jpg" 
+                            # 2. Replaces the full suffix with the page count in parenthesis: "Title... (235)"
+                            intermediate_filename = re.sub(pages_suffix_pattern, r' (\1)', title)
                             
-                            # 3. URL-encode the filename (due to spaces, commas, parentheses)
+                            # 3. Construct the exact filename: "xTitle... (235).jpg"
+                            cover_filename = f"x{intermediate_filename}.jpg"
+                            
+                            # 4. URL-encode the filename (Crucial for spaces, commas, etc.)
                             encoded_filename = urllib.parse.quote(cover_filename)
                             
-                            # 4. Construct the final URL: {R2_PUBLIC_URL}/covers/{encoded_filename}
+                            # 5. Final URL: {R2_PUBLIC_URL}/covers/{encoded_filename}
                             cover_url = f"{R2_PUBLIC_URL}/covers/{encoded_filename}"
+                            # NEW: Print the final URL to the Render logs for easy testing
+                            print(f"✅ Generated R2 Cover URL for {handle}: {cover_url}", flush=True)
                         else:
-                            # Fallback to the non-working Shopify URL if R2 is not configured
+                            # Fallback if R2_PUBLIC_URL is NOT set.
+                            print("⚠️ R2_PUBLIC_URL environment variable is MISSING. Using Shopify fallback (image may not load).", flush=True)
                             cover_key = handle
                             cover_url = f"https://cdn.shopify.com/s/files/1/0960/9930/3717/files/x{cover_key}.jpg"
                         
