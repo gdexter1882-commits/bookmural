@@ -98,25 +98,24 @@ def get_eligible_texts(wall_width, wall_height, csv_path, cdn_map):
                         
                         slug = slugify(handle)
 
-                        # --- COVER IMAGE URL FIX (Uses Title field) ---
+                        # --- COVER IMAGE URL FIX (V4 - Simple String Replacement) ---
                         if R2_PUBLIC_URL:
-                            # 1. Regex pattern to find and capture the page count in parenthesis
-                            # This handles: "Title... (235 pages)"
-                            pages_suffix_pattern = r'\s?\((\d+)\s+pages\)$'
+                            # 1. Start with the Title and remove the literal string " pages)"
+                            # This handles: "Title... (235 pages)" -> "Title... (235"
+                            intermediate_filename = title.replace(" pages)", ")")
                             
-                            # 2. Replaces the full suffix with the page count in parenthesis: "Title... (235)"
-                            intermediate_filename = re.sub(pages_suffix_pattern, r' (\1)', title)
-                            
-                            # 3. Construct the exact filename: "xTitle... (235).jpg"
+                            # 2. Construct the exact filename: "xTitle... (235).jpg"
                             cover_filename = f"x{intermediate_filename}.jpg"
                             
-                            # 4. URL-encode the filename (Crucial for spaces, commas, etc.)
+                            # 3. Print the exact filename (NOT URL-ENCODED) for debugging
+                            print(f"🔎 EXPECTED R2 FILENAME: {cover_filename}", flush=True)
+
+                            # 4. URL-encode the filename
                             encoded_filename = urllib.parse.quote(cover_filename)
                             
-                            # 5. Final URL: {R2_PUBLIC_URL}/covers/{encoded_filename}
+                            # 5. Final URL
                             cover_url = f"{R2_PUBLIC_URL}/covers/{encoded_filename}"
-                            # NEW: Print the final URL to the Render logs for easy testing
-                            print(f"✅ Generated R2 Cover URL for {handle}: {cover_url}", flush=True)
+                            print(f"✅ Generated R2 Cover URL: {cover_url}", flush=True)
                         else:
                             # Fallback if R2_PUBLIC_URL is NOT set.
                             print("⚠️ R2_PUBLIC_URL environment variable is MISSING. Using Shopify fallback (image may not load).", flush=True)
