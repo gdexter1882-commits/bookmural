@@ -11,7 +11,9 @@ os.environ["FLASK_RUN_HOST"] = "0.0.0.0"
 os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
 
 app = Flask(__name__, static_folder="static")
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# CRITICAL FIX: Explicitly set the allowed origin to resolve the CORS error
+CORS(app, resources={r"/api/*": {"origins": "https://smallestroom.com"}})
 
 CSV_PATH = "mural_master_regenerated.csv" # Kept original path
 
@@ -78,7 +80,7 @@ def accurate_grid():
         # Use the already calculated layout data
         layout = mural.get("layout_details")
         if not layout or not layout.get("eligible"):
-            # This should not happen if mural was found in eligible list, but for safety:
+             # This should not happen if mural was found in eligible list, but for safety:
              return jsonify({"error": "Layout details not found or not eligible"}), 400
 
         # Run the async draw_grid function to generate and upload the image to R2
