@@ -7,7 +7,7 @@ boto3==1.35.29
 uvicorn[standard]==0.30.6
 flask==3.0.3
 flask-cors==6.0.1
-
+gunicorn==23.0.0
 
 
 
