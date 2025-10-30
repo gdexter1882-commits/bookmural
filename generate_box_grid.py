@@ -6,7 +6,6 @@ import os
 from PIL import Image, ImageDraw
 from io import BytesIO
 from eligible_texts import slugify 
-import re # NEW: Added re for safe URL string manipulation
 
 # --- Configuration ---
 PREVIEW_SCALE_FACTOR = 10 
@@ -29,15 +28,19 @@ async def fetch_image(session: aiohttp.ClientSession, url: str, timeout: int = 3
         print(f"Failed to fetch {url}: {e}", flush=True)
         return None
 
-# --- R2 Upload Function (FINAL URL FIX APPLIED) ---
+# --- R2 Upload Function (PUBLIC URL FIX APPLIED) ---
 def upload_to_r2(handle: str, image: Image.Image) -> str:
     """Saves the Pillow image to a BytesIO buffer and uploads it to R2/S3."""
     try:
+        # Used by Boto3 to upload the file
         R2_ENDPOINT = os.environ.get('R2_ENDPOINT_URL')
         BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
         
-        if not R2_ENDPOINT or not BUCKET_NAME:
-            print("❌ R2 environment variables not set. Image generation will fail.", flush=True)
+        # Used to construct the public URL (MUST be set to https://pub-xxxx.r2.dev)
+        R2_PUBLIC_URL = os.environ.get('R2_PUBLIC_URL') 
+        
+        if not R2_ENDPOINT or not BUCKET_NAME or not R2_PUBLIC_URL:
+            print("❌ R2 environment variables (R2_ENDPOINT_URL, R2_BUCKET_NAME, or R2_PUBLIC_URL) not set. Image generation will fail.", flush=True)
             return "" 
 
         s3 = boto3.client(
@@ -52,6 +55,7 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
         image.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
 
+        # 1. Upload the file (this requires BUCKET_NAME)
         s3.upload_fileobj(
             img_byte_arr,
             Bucket=BUCKET_NAME,
@@ -62,28 +66,18 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
             }
         )
         
-        # --- CRITICAL FIX: Correctly format the R2 public domain for Path-Style Access ---
-        
-        # 1. Safely strip the protocol (http/https) from the endpoint URL
-        clean_endpoint = re.sub(r'https?://', '', R2_ENDPOINT)
-        
-        # 2. Extract the Account ID (the segment before the first dot)
-        account_id_part = clean_endpoint.split('.')[0]
-        
-        # 3. Build the secure domain base: <ACCOUNT_ID>.r2.dev
-        r2_domain = f"{account_id_part}.r2.dev"
-        
-        # 4. Construct the final public URL, placing the BUCKET_NAME in the path
-        public_url = f"https://{r2_domain}/{BUCKET_NAME}/previews/{filename}"
-
-        # --- End CRITICAL FIX ---
+        # 2. Construct the final public URL (using the R2_PUBLIC_URL base)
+        # Final URL format: https://pub-xxxx.r2.dev/previews/filename.png
+        # Note: BUCKET_NAME is NOT included here as the public token already points to the bucket root.
+        public_url = f"{R2_PUBLIC_URL}/previews/{filename}"
         
         print(f"☁️ Uploaded grid to R2: {public_url}", flush=True)
         return public_url
 
     except Exception as e:
         print(f"❌ R2 Upload Failed with Boto3 error: {e}", flush=True)
-        return ""
+        # Re-raise the exception to provide a full stack trace in your Render logs if it fails
+        raise
 
 
 async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Image:
