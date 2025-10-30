@@ -6,6 +6,7 @@ import os
 from PIL import Image, ImageDraw
 from io import BytesIO
 from eligible_texts import slugify 
+import re # NEW: Added re for safe URL string manipulation
 
 # --- Configuration ---
 PREVIEW_SCALE_FACTOR = 10 
@@ -61,16 +62,19 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
             }
         )
         
-        # --- CRITICAL FIX: Correctly format the R2 public domain ---
-        # 1. Extract the Account ID from the R2_ENDPOINT_URL
-        # R2_ENDPOINT is e.g. https://<ACCOUNT_ID>.r2.cloudflarestorage.com
-        account_id_part = R2_ENDPOINT.split('//')[-1].split('.')[0]
+        # --- CRITICAL FIX: Correctly format the R2 public domain for Path-Style Access ---
         
-        # 2. Build the correct public R2 domain: <BUCKET>.<ACCOUNT_ID>.r2.dev
-        r2_domain = f"{BUCKET_NAME}.{account_id_part}.r2.dev"
+        # 1. Safely strip the protocol (http/https) from the endpoint URL
+        clean_endpoint = re.sub(r'https?://', '', R2_ENDPOINT)
         
-        # 3. Construct the final public URL
-        public_url = f"https://{r2_domain}/previews/{filename}"
+        # 2. Extract the Account ID (the segment before the first dot)
+        account_id_part = clean_endpoint.split('.')[0]
+        
+        # 3. Build the secure domain base: <ACCOUNT_ID>.r2.dev
+        r2_domain = f"{account_id_part}.r2.dev"
+        
+        # 4. Construct the final public URL, placing the BUCKET_NAME in the path
+        public_url = f"https://{r2_domain}/{BUCKET_NAME}/previews/{filename}"
 
         # --- End CRITICAL FIX ---
         
