@@ -28,11 +28,11 @@ async def fetch_image(session: aiohttp.ClientSession, url: str, timeout: int = 3
         print(f"Failed to fetch {url}: {e}", flush=True)
         return None
 
-# --- R2 Upload Function (PUBLIC URL FIX APPLIED) ---
+# --- R2 Upload Function ---
 def upload_to_r2(handle: str, image: Image.Image) -> str:
     """Saves the Pillow image to a BytesIO buffer and uploads it to R2/S3."""
     try:
-        # Used by Boto3 to upload the file
+        # Used by Boto3 to upload the file (e.g., https://<account_id>.r2.cloudflarestorage.com)
         R2_ENDPOINT = os.environ.get('R2_ENDPOINT_URL')
         BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
         
@@ -55,7 +55,7 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
         image.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
 
-        # 1. Upload the file (this requires BUCKET_NAME)
+        # 1. Upload the file
         s3.upload_fileobj(
             img_byte_arr,
             Bucket=BUCKET_NAME,
@@ -68,7 +68,6 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
         
         # 2. Construct the final public URL (using the R2_PUBLIC_URL base)
         # Final URL format: https://pub-xxxx.r2.dev/previews/filename.png
-        # Note: BUCKET_NAME is NOT included here as the public token already points to the bucket root.
         public_url = f"{R2_PUBLIC_URL}/previews/{filename}"
         
         print(f"☁️ Uploaded grid to R2: {public_url}", flush=True)
@@ -76,8 +75,7 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
 
     except Exception as e:
         print(f"❌ R2 Upload Failed with Boto3 error: {e}", flush=True)
-        # Re-raise the exception to provide a full stack trace in your Render logs if it fails
-        raise
+        raise # Re-raise the exception to provide a full stack trace in your Render logs
 
 
 async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Image:
@@ -90,6 +88,7 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     ph = int(layout["page_h"] * PREVIEW_SCALE_FACTOR)
     margin_x = int(layout["margin_x"] * PREVIEW_SCALE_FACTOR)
     margin_y = int(layout["margin_y"] * PREVIEW_SCALE_FACTOR)
+    # This is the row_gap, used for vertical spacing only
     gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR
 
     # Canvas setup
@@ -118,12 +117,17 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     for idx, page_img in enumerate(fetched_images):
         col = idx % cols
         row = idx // cols
-        x = margin_x + col * (pw + gap)
+        
+        # FIX: Horizontal gap between columns is 0 (pages butt up)
+        x = margin_x + col * pw 
+        
+        # Vertical gap is handled by 'gap' (row_gap)
         y = margin_y + row * (ph + gap)
 
         page_num = idx + 1
         
         if page_img:
+            # Note: LANCZOS is the highest quality resampling filter
             page_img = page_img.resize((pw, ph), Image.LANCZOS)
         else:
             page_img = draw_error_tile(pw, ph, page_num)
@@ -137,6 +141,7 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
 async def draw_grid(handle: str, layout: dict, folder: str, pages: int, cdn_map: dict):
     """Generates the grid image and uploads it to R2."""
     mural = {
+        # 'folder' is passed in from app.py now, but keeping the structure clean
         "folder": folder, 
         "pages": pages,
         "page_w": layout["page_w"],
