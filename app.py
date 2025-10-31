@@ -6,12 +6,14 @@ from flask_cors import CORS
 from eligible_texts import get_eligible_texts, try_layout, slugify
 from generate_box_grid import draw_grid
 import asyncio
+import traceback # <--- ADDED THIS LINE
 
 os.environ["FLASK_RUN_HOST"] = "0.0.0.0"
 os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
 
 app = Flask(__name__, static_folder="static")
 
+# CORS setup is correct, allowing requests from smallestroom.com
 CORS(app, resources={r"/api/*": {"origins": "https://smallestroom.com"}})
 
 CSV_PATH = "mural_master_regenerated.csv"
@@ -37,11 +39,11 @@ def health():
 def get_murals():
     try:
         data = request.get_json()
-        wall_width = float(data.get("wall_width", 0))
-        wall_height = float(data.get("wall_height", 0))
-
-        if wall_width <= 0 or wall_height <= 0:
-            return jsonify({"error": "Invalid dimensions"}), 400
+        wall_width = data.get("wall_width", 0)
+        wall_height = data.get("wall_height", 0)
+        
+        if not wall_width or not wall_height:
+            return jsonify({"error": "Missing wall dimensions"}), 400
 
         eligible = get_eligible_texts(
             wall_width,
@@ -49,18 +51,23 @@ def get_murals():
             csv_path=CSV_PATH,
             cdn_map=cdn_map
         )
-        return jsonify({"eligible": eligible})
+        return jsonify(eligible)
+
     except Exception as e:
         print(f"❌ Error in /api/murals: {e}", flush=True)
-        return jsonify({"error": str(e)}), 500
+        traceback.print_exc() # Print traceback for murals endpoint too, just in case
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route("/api/accurate-grid", methods=["POST"])
 def accurate_grid():
     try:
         data = request.get_json()
         handle = data.get("handle")
-        wall_width = float(data.get("wall_width", 0))
-        wall_height = float(data.get("wall_height", 0))
+        wall_width = data.get("wall_width", 0)
+        wall_height = data.get("wall_height", 0)
+        
+        if not handle or not wall_width or not wall_height:
+            return jsonify({"error": "Missing handle or wall dimensions"}), 400
 
         print(f"🧮 Generating grid for {handle} at {wall_width} x {wall_height}", flush=True)
 
@@ -84,7 +91,7 @@ def accurate_grid():
         grid_url = asyncio.run(draw_grid(
             handle, 
             layout, 
-            mural["folder"],  # ARG 3: folder (was previously the extra argument)
+            mural["folder"],  # ARG 3: folder
             mural["pages"],   # ARG 4: pages
             cdn_map           # ARG 5: cdn_map
         ))
@@ -96,8 +103,6 @@ def accurate_grid():
             return jsonify({"error": "Failed to generate or upload grid"}), 500
             
     except Exception as e:
-        print(f"❌ Error in /api/accurate-grid: {e}", flush=True)
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == "__main__":
-    app.run(debug=True, host=os.environ["FLASK_RUN_HOST"], port=int(os.environ["FLASK_RUN_PORT"]))
+        print(f"❌ Critical Error in /api/accurate-grid: {e}", flush=True)
+        traceback.print_exc() # <--- MODIFIED: Print the full error stack
+        return jsonify({"error": "Failed to generate or upload grid"}), 500
