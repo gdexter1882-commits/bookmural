@@ -11,12 +11,14 @@ from eligible_texts import slugify
 PREVIEW_SCALE_FACTOR = 10 
 
 def draw_error_tile(width: int, height: int, page_num: int) -> Image.Image:
+# ... (draw_error_tile function remains unchanged) ...
     tile = Image.new("RGB", (width, height), "#eeeeee")
     draw = ImageDraw.Draw(tile)
     draw.text((width // 2 - 10, height // 2 - 10), f"X{page_num}", fill="red")
     return tile
 
 async def fetch_image(session: aiohttp.ClientSession, url: str, timeout: int = 30) -> Image.Image | None:
+# ... (fetch_image function remains unchanged) ...
     if not url:
         return None
     try:
@@ -28,15 +30,12 @@ async def fetch_image(session: aiohttp.ClientSession, url: str, timeout: int = 3
         print(f"Failed to fetch {url}: {e}", flush=True)
         return None
 
-# --- R2 Upload Function ---
+# --- R2 Upload Function (remains unchanged) ---
 def upload_to_r2(handle: str, image: Image.Image) -> str:
-    """Saves the Pillow image to a BytesIO buffer and uploads it to R2/S3."""
+# ... (upload_to_r2 function remains unchanged) ...
     try:
-        # Used by Boto3 to upload the file (e.g., https://<account_id>.r2.cloudflarestorage.com)
         R2_ENDPOINT = os.environ.get('R2_ENDPOINT_URL')
         BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
-        
-        # Used to construct the public URL (MUST be set to https://pub-xxxx.r2.dev)
         R2_PUBLIC_URL = os.environ.get('R2_PUBLIC_URL') 
         
         if not R2_ENDPOINT or not BUCKET_NAME or not R2_PUBLIC_URL:
@@ -55,7 +54,6 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
         image.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
 
-        # 1. Upload the file
         s3.upload_fileobj(
             img_byte_arr,
             Bucket=BUCKET_NAME,
@@ -66,8 +64,6 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
             }
         )
         
-        # 2. Construct the final public URL (using the R2_PUBLIC_URL base)
-        # Final URL format: https://pub-xxxx.r2.dev/previews/filename.png
         public_url = f"{R2_PUBLIC_URL}/previews/{filename}"
         
         print(f"☁️ Uploaded grid to R2: {public_url}", flush=True)
@@ -75,8 +71,7 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
 
     except Exception as e:
         print(f"❌ R2 Upload Failed with Boto3 error: {e}", flush=True)
-        raise # Re-raise the exception to provide a full stack trace in your Render logs
-
+        raise 
 
 async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Image:
     folder = mural["folder"]
@@ -90,28 +85,22 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     pw = int(layout["page_w"] * PREVIEW_SCALE_FACTOR)
     ph = int(layout["page_h"] * PREVIEW_SCALE_FACTOR)
     
-    # Original margins (used for vertical alignment)
-    margin_x = layout["margin_x"] * PREVIEW_SCALE_FACTOR
+    # FIX: Use the new, pre-calculated butted-up margin
+    effective_margin_x = int(layout["butted_up_margin_x"] * PREVIEW_SCALE_FACTOR)
+    
+    # The margin_y remains the same (calculated with vertical gaps)
     margin_y = int(layout["margin_y"] * PREVIEW_SCALE_FACTOR)
     
     # The calculated gap (used for vertical spacing)
     gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR 
 
-    # --- Horizontal Gap Elimination Fix ---
-    # 1. Calculate the total horizontal space previously occupied by internal gaps.
-    total_gap_space = (cols - 1) * gap if cols > 1 else 0
-    
-    # 2. Redistribute this space into the left and right margins to keep the overall canvas width constant.
-    effective_margin_x = int(margin_x + total_gap_space / 2) 
-
-    # Canvas setup - The canvas width is now calculated using the new margin and butted-up pages.
-    # This maintains the true proportional width of the wall.
+    # Canvas setup - Calculated using the butted-up margin. This maintains proportional width.
     canvas_w = 2 * effective_margin_x + cols * pw
     
     # Vertical height calculation remains the same (it still needs the vertical gaps)
     canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
     
-    img = Image.new("RGB", (int(canvas_w), int(canvas_h)), "white") # Explicit cast to int()
+    img = Image.new("RGB", (int(canvas_w), int(canvas_h)), "white") 
 
     # Build URLs
     page_urls = []
@@ -135,7 +124,7 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
         col = idx % cols
         row = idx // cols
         
-        # New X: Pages butt up, starting from the enlarged margin.
+        # New X: Pages butt up, starting from the effective margin. No gap added here.
         x = int(effective_margin_x + col * pw)
         
         # Vertical placement: Still uses the gap. Cast to int().
@@ -156,17 +145,14 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
 
 # --- Main entry point for grid generation (5 arguments) ---
 async def draw_grid(handle: str, layout: dict, folder: str, pages: int, cdn_map: dict):
-    """Generates the grid image and uploads it to R2."""
+# ... (draw_grid function remains unchanged) ...
     mural = {
-        # 'folder' is passed in from app.py now, but keeping the structure clean
         "folder": folder, 
         "pages": pages,
         "page_w": layout["page_w"],
         "page_h": layout["page_h"],
     }
     
-    # Generate the Pillow Image object
     img_grid = await draw_grid_image(mural, layout, cdn_map)
     
-    # Upload to R2 and return the CDN URL
     return upload_to_r2(handle, img_grid)

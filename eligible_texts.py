@@ -8,21 +8,23 @@ import math
 # --- Configuration (Set the R2 Base URL for Covers) ---
 R2_COVERS_BASE_URL = "https://pub-391c14324a544917a28a9e0955bfc219.r2.dev/covers"
 
-# --- Utility Functions ---\
+# --- Utility Functions ---
 
 def slugify(text):
+# ... (slugify function remains unchanged) ...
     if not isinstance(text, str):
         return ""
     text = unicodedata.normalize("NFKD", text)
     text = text.encode("ascii", "ignore").decode("ascii")
-    # This step removes non-word characters like commas and parentheses
     text = re.sub(r"[^\w\s-]", "", text)
-    # This step replaces spaces/multiple hyphens with an underscore
     text = re.sub(r"[\s-]+\s*", "_", text)
     return text.lower().strip("_")
 
 def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
-# ... (try_layout function remains unchanged) ...
+    """
+    Finds the optimal layout (columns, rows, scale, margin, row_gap) 
+    that fits the wall dimensions while keeping page scale between 95% and 105%.
+    """
     best_layout = {"eligible": False}
 
     for margin_test in range(5, 16):
@@ -44,7 +46,7 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                 # Calculate columns required for the total number of pages
                 cols = math.ceil(pages / max_rows)
                 
-                # Calculate total width required for this layout
+                # Calculate total width required for this layout (PAGES + GAPS)
                 total_w_needed = cols * scaled_pw + (cols - 1) * row_gap
                 
                 # Check if the total width fits the usable wall width
@@ -57,31 +59,40 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                     # Re-check the column gap constraint (must be close to row_gap, e.g., within 2cm)
                     if abs(col_gap - row_gap) <= 2 or cols == 1:
                         
-                        # Calculate the margin needed to center the grid perfectly
-                        # Horizontal margin (left/right)
+                        # Calculate the margin needed to center the grid perfectly (MARGIN AROUND PAGES+GAPS)
                         final_margin_x = (wall_w - (cols * scaled_pw + (cols - 1) * row_gap)) / 2
-                        # Vertical margin (top/bottom)
                         final_margin_y = (wall_h - (max_rows * scaled_ph + (max_rows - 1) * row_gap)) / 2
+                        
+                        # --- FIX START: Calculate the margin for the butted-up grid ---
+                        total_gap_space = (cols - 1) * row_gap
+                        # The butted-up margin is the original margin plus half the total gap space
+                        butted_up_margin_x = final_margin_x + (total_gap_space / 2)
 
-                        current_layout = {
-                            "eligible": True,
-                            "scale_pct": scale_pct,
-                            "cols": cols,
-                            "rows": max_rows,
-                            "row_gap": row_gap,
-                            "margin_x": final_margin_x,
-                            "margin_y": final_margin_y,
-                            "page_w": scaled_pw,
-                            "page_h": scaled_ph
-                        }
+                        # NEW CHECK: Ensure the BUTTED-UP margin is within the desired range (<= 16cm)
+                        if butted_up_margin_x <= 16:
+                            
+                            current_layout = {
+                                "eligible": True,
+                                "scale_pct": scale_pct,
+                                "cols": cols,
+                                "rows": max_rows,
+                                "row_gap": row_gap,
+                                "margin_x": final_margin_x, 
+                                "margin_y": final_margin_y,
+                                "page_w": scaled_pw,
+                                "page_h": scaled_ph,
+                                # NEW FIELD: The effective horizontal margin for butted-up pages
+                                "butted_up_margin_x": butted_up_margin_x 
+                            }
 
-                        # Since we check scale_pct from 95 up to 105, the first valid layout found is the most suitable
-                        return current_layout
+                            # Since we check scale_pct from 95 up to 105, the first valid layout found is the most suitable
+                            return current_layout
+                        # --- FIX END ---
                         
     return best_layout
 
 
-# --- Main Function ---
+# --- Main Function (remains unchanged, it passes layout_details) ---
 
 def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerated.csv", cdn_map=None):
     """
@@ -113,48 +124,41 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                     
                     if layout["eligible"]:
                         
-                        # --- FIX START: Robust slug generation (path removal + number preservation) ---
+                        # --- Slug Generation (remains unchanged) ---
                         title_for_slug = title.strip()
                         
-                        # 1. Remove author/stories path prefix (e.g., "Dickens, Charles, stories/")
                         if '/' in title_for_slug:
                             title_for_slug = title_for_slug.split('/', 1)[1].strip()
                             
-                        # 2. Extract the page number from the end (e.g., '42' from '(42 pages)')
                         page_match = re.search(r'\((\d+)\s*pages\)$', title_for_slug)
                         page_number = page_match.group(1) if page_match else None
                             
-                        # 3. Remove the entire '(XXX pages)' suffix from the title
                         title_for_slug_clean = re.sub(r'\s*\(\d+\s*pages\)$', '', title_for_slug)
 
-                        # 4. Generate the base slug from the clean title
                         base_slug = slugify(title_for_slug_clean).replace('_', '-')
                         
-                        # 5. Append the page number to the clean slug if found
                         if page_number:
                             clean_url_slug = f"{base_slug}-{page_number}"
                         else:
                             clean_url_slug = base_slug
-                        # --- FIX END ---
+                        # --- Slug Generation End ---
                         
-                        # --- Cover URL Logic (Fixed to use R2 URL) ---
+                        # --- Cover URL Logic ---
                         cover_key = handle 
                         cover_url = f"{R2_COVERS_BASE_URL}/x{cover_key}.jpg"
                         
-                        # Diagnostic print for the final URL
                         print(f"✅ Generated R2 Cover URL: {cover_url}", flush=True)
 
                         eligible.append({
                             "title": title,
                             "handle": handle,
-                            "product_slug": clean_url_slug, # <-- NEW, CORRECT SLUG FIELD
+                            "product_slug": clean_url_slug, 
                             "scale": layout.get("scale_pct"),
                             "cover_url": cover_url, 
                             "pages": pages,
                             "aspect_ratio": aspect_ratio,
                             "page_w": width_cm,
                             "page_h": height_cm,
-                            # The folder name is used as the key for page images in cdn_map.json
                             "folder": title.rsplit(" (", 1)[0] + f" ({pages})", 
                             "layout_details": layout 
                         })
