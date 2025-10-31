@@ -11,7 +11,6 @@ R2_COVERS_BASE_URL = "https://pub-391c14324a544917a28a9e0955bfc219.r2.dev/covers
 # --- Utility Functions ---
 
 def slugify(text):
-# ... (slugify function remains unchanged) ...
     if not isinstance(text, str):
         return ""
     text = unicodedata.normalize("NFKD", text)
@@ -22,77 +21,67 @@ def slugify(text):
 
 def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
     """
-    Finds the optimal layout (columns, rows, scale, margin, row_gap) 
-    that fits the wall dimensions while keeping page scale between 95% and 105%.
+    Finds the optimal layout (cols, rows, scale, row_gap) that fits the wall
+    dimensions while keeping:
+    1. Page scale between 95% and 105%.
+    2. Horizontal pages butted up (no gap).
+    3. BOTH horizontal and vertical margins strictly between 5cm and 16cm.
     """
     best_layout = {"eligible": False}
 
-    for margin_test in range(5, 16):
-        usable_w = wall_w - 2 * margin_test
-        usable_h = wall_h - 2 * margin_test
+    for scale_pct in range(95, 106):
+        scaled_pw = page_w * scale_pct / 100
+        scaled_ph = page_h * scale_pct / 100
 
-        for scale_pct in range(95, 106):
-            scaled_pw = page_w * scale_pct / 100
-            scaled_ph = page_h * scale_pct / 100
+        for row_gap in range(1, 4): # Row gaps of 1, 2, or 3 cm
+            
+            # Iterate through a reasonable number of rows (e.g., up to 30)
+            for rows in range(1, 31): 
+                
+                # --- 1. Horizontal Fit and Constraint Check (Butted-Up Pages) ---
+                cols = math.ceil(pages / rows)
+                total_w_needed_butted = cols * scaled_pw
+                
+                # Calculate the horizontal margin required to center butted-up pages.
+                butted_up_margin_x = (wall_w - total_w_needed_butted) / 2
+                
+                # Check 1: Horizontal margin must be between 5cm and 16cm.
+                if not (5 <= butted_up_margin_x <= 16):
+                    # If margin is too small (<5), this row count is too wide, so continue to next row count.
+                    # If margin is too large (>16), this row count is too narrow, so continue to next row count.
+                    continue 
 
-            for row_gap in range(1, 4):
-                # Calculate max possible rows/cols for the current scale and gap
-                max_rows = math.floor(usable_h / (scaled_ph + row_gap))
+                # --- 2. Vertical Fit and Constraint Check (Using row_gap) ---
+                total_h_needed = rows * scaled_ph + (rows - 1) * row_gap
+                final_margin_y = (wall_h - total_h_needed) / 2
                 
-                # If we can't fit at least 1 row, continue
-                if max_rows < 1:
-                    continue
-
-                # Calculate columns required for the total number of pages
-                cols = math.ceil(pages / max_rows)
+                # Check 2a: Vertical margin must be positive (i.e., must fit vertically)
+                if final_margin_y < 0:
+                    # Cannot fit this many rows, break the inner loop (row iteration) and try a different scale/gap.
+                    break 
                 
-                # Calculate total width required for this layout (PAGES + GAPS)
-                total_w_needed = cols * scaled_pw + (cols - 1) * row_gap
-                
-                # Check if the total width fits the usable wall width
-                if total_w_needed <= usable_w:
-                    # We found a valid layout that fits!
+                # Check 2b: Vertical margin must be between 5cm and 16cm.
+                if 5 <= final_margin_y <= 16:
                     
-                    # Calculate the average column gap (including the margins)
-                    col_gap = (usable_w - cols * scaled_pw) / (cols - 1 if cols > 1 else 2) 
-
-                    # Re-check the column gap constraint (must be close to row_gap, e.g., within 2cm)
-                    if abs(col_gap - row_gap) <= 2 or cols == 1:
-                        
-                        # Calculate the margin needed to center the grid perfectly (MARGIN AROUND PAGES+GAPS)
-                        final_margin_x = (wall_w - (cols * scaled_pw + (cols - 1) * row_gap)) / 2
-                        final_margin_y = (wall_h - (max_rows * scaled_ph + (max_rows - 1) * row_gap)) / 2
-                        
-                        # --- FIX START: Calculate the margin for the butted-up grid ---
-                        total_gap_space = (cols - 1) * row_gap
-                        # The butted-up margin is the original margin plus half the total gap space
-                        butted_up_margin_x = final_margin_x + (total_gap_space / 2)
-
-                        # NEW CHECK: Ensure the BUTTED-UP margin is within the desired range (<= 16cm)
-                        if butted_up_margin_x <= 16:
-                            
-                            current_layout = {
-                                "eligible": True,
-                                "scale_pct": scale_pct,
-                                "cols": cols,
-                                "rows": max_rows,
-                                "row_gap": row_gap,
-                                "margin_x": final_margin_x, 
-                                "margin_y": final_margin_y,
-                                "page_w": scaled_pw,
-                                "page_h": scaled_ph,
-                                # NEW FIELD: The effective horizontal margin for butted-up pages
-                                "butted_up_margin_x": butted_up_margin_x 
-                            }
-
-                            # Since we check scale_pct from 95 up to 105, the first valid layout found is the most suitable
-                            return current_layout
-                        # --- FIX END ---
-                        
+                    # Found an eligible layout where both X and Y margins are 5cm-16cm.
+                    current_layout = {
+                        "eligible": True,
+                        "scale_pct": scale_pct,
+                        "cols": cols,
+                        "rows": rows,
+                        "row_gap": row_gap,
+                        "page_w": scaled_pw,
+                        "page_h": scaled_ph,
+                        # Pass the butted-up margin for grid drawing
+                        "butted_up_margin_x": butted_up_margin_x, 
+                        "margin_y": final_margin_y
+                    }
+                    return current_layout
+                    
     return best_layout
 
 
-# --- Main Function (remains unchanged, it passes layout_details) ---
+# --- Main Function (remains unchanged) ---
 
 def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerated.csv", cdn_map=None):
     """
@@ -124,7 +113,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                     
                     if layout["eligible"]:
                         
-                        # --- Slug Generation (remains unchanged) ---
+                        # --- Slug Generation ---
                         title_for_slug = title.strip()
                         
                         if '/' in title_for_slug:
