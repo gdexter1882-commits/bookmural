@@ -82,21 +82,33 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     folder = mural["folder"]
     pages = mural["pages"]
     
-    # FIX: Use 'rows' and 'cols' keys directly from the layout dict instead of trying to parse a missing 'grid' key.
+    # Use 'rows' and 'cols' keys directly from the layout dict
     rows = int(layout["rows"])
     cols = int(layout["cols"])
 
     # Scale dimensions for preview. These must be integers.
     pw = int(layout["page_w"] * PREVIEW_SCALE_FACTOR)
     ph = int(layout["page_h"] * PREVIEW_SCALE_FACTOR)
-    margin_x = int(layout["margin_x"] * PREVIEW_SCALE_FACTOR)
+    
+    # Original margins (used for vertical alignment)
+    margin_x = layout["margin_x"] * PREVIEW_SCALE_FACTOR
     margin_y = int(layout["margin_y"] * PREVIEW_SCALE_FACTOR)
     
-    # The gap value (scaled) is the same for horizontal and vertical spacing (left as float for precision)
+    # The calculated gap (used for vertical spacing)
     gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR 
 
-    # Canvas setup - Include horizontal gaps in canvas_w and cast to int().
-    canvas_w = cols * pw + (cols - 1) * gap + 2 * margin_x
+    # --- Horizontal Gap Elimination Fix ---
+    # 1. Calculate the total horizontal space previously occupied by internal gaps.
+    total_gap_space = (cols - 1) * gap if cols > 1 else 0
+    
+    # 2. Redistribute this space into the left and right margins to keep the overall canvas width constant.
+    effective_margin_x = int(margin_x + total_gap_space / 2) 
+
+    # Canvas setup - The canvas width is now calculated using the new margin and butted-up pages.
+    # This maintains the true proportional width of the wall.
+    canvas_w = 2 * effective_margin_x + cols * pw
+    
+    # Vertical height calculation remains the same (it still needs the vertical gaps)
     canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
     
     img = Image.new("RGB", (int(canvas_w), int(canvas_h)), "white") # Explicit cast to int()
@@ -123,10 +135,10 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
         col = idx % cols
         row = idx // cols
         
-        # Include the cumulative horizontal gap for correct placement. Cast to int().
-        x = int(margin_x + col * pw + col * gap)
+        # New X: Pages butt up, starting from the enlarged margin.
+        x = int(effective_margin_x + col * pw)
         
-        # Vertical placement. Cast to int().
+        # Vertical placement: Still uses the gap. Cast to int().
         y = int(margin_y + row * (ph + gap))
 
         page_num = idx + 1
