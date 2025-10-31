@@ -20,8 +20,10 @@ def slugify(text):
     return text.lower().strip("_")
 
 def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
-# ... (try_layout function remains unchanged) ...
-# ... (try_layout function remains unchanged) ...
+    """
+    Finds the optimal layout (columns, rows, scale, margin, row_gap) 
+    that fits the wall dimensions while keeping page scale between 95% and 105%.
+    """
     best_layout = {"eligible": False}
 
     for margin_test in range(5, 16):
@@ -112,8 +114,8 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                     
                     if layout["eligible"]:
                         
-                        # --- FIX START: Clean the title to remove the redundant path prefix ---
-                        # Check if the title contains the unwanted path prefix (separated by '/')
+                        # --- FIX START: Clean the title to remove the redundant path prefix and generate URL slug ---
+                        # 1. Determine the clean text for slugging (after the first '/')
                         if '/' in title:
                             # Use the text AFTER the first '/' for slug generation
                             title_for_slug = title.split('/', 1)[1].strip()
@@ -121,8 +123,8 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                             # Use the entire title for simple handles (like Crane's)
                             title_for_slug = title
                             
-                        # 1. Generate a clean slug using existing slugify (will use underscores)
-                        # 2. Convert underscores to hyphens for the final URL slug
+                        # 2. Generate a clean slug using existing slugify (will use underscores)
+                        # 3. Convert underscores to hyphens for the final URL slug
                         clean_url_slug = slugify(title_for_slug).replace('_', '-')
                         # --- FIX END ---
                         
