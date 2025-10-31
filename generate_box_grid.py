@@ -82,7 +82,6 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     folder = mural["folder"]
     pages = mural["pages"]
     
-    # --- FIX 1: Resolves KeyError: 'grid' by reading new keys ---
     rows = layout["rows"]
     cols = layout["cols"]
 
@@ -91,13 +90,15 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     ph = int(layout["page_h"] * PREVIEW_SCALE_FACTOR)
     margin_x = int(layout["margin_x"] * PREVIEW_SCALE_FACTOR)
     margin_y = int(layout["margin_y"] * PREVIEW_SCALE_FACTOR)
-    # This is the row_gap, used for vertical and horizontal spacing
-    gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR
-
+    
+    # This is the row_gap, now correctly used for vertical spacing only
+    v_gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR
+    
     # Canvas setup
-    # --- FIX 2: Correctly calculate canvas width to include horizontal gaps ---
-    canvas_w = cols * pw + (cols - 1) * gap + 2 * margin_x
-    canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
+    # FIX 1: Canvas width should NOT include a horizontal gap
+    canvas_w = cols * pw + 2 * margin_x
+    # Canvas height uses the vertical gap (v_gap)
+    canvas_h = rows * ph + (rows - 1) * v_gap + 2 * margin_y
     img = Image.new("RGB", (canvas_w, canvas_h), "white")
 
     # Build URLs
@@ -122,11 +123,11 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
         col = idx % cols
         row = idx // cols
         
-        # --- FIX 3: Correctly calculate horizontal page positioning to include gaps ---
-        x = margin_x + col * pw + col * gap
+        # FIX 2: Horizontal position should NOT include a gap (pages butt up)
+        x = margin_x + col * pw 
         
-        # Vertical positioning (Vertical gap is handled by 'gap' (row_gap))
-        y = margin_y + row * (ph + gap)
+        # Vertical gap is correctly handled by 'v_gap'
+        y = margin_y + row * (ph + v_gap)
 
         page_num = idx + 1
         
