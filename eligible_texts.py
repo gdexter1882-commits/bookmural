@@ -20,10 +20,8 @@ def slugify(text):
     return text.lower().strip("_")
 
 def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
-    """
-    Finds the optimal layout (columns, rows, scale, margin, row_gap) 
-    that fits the wall dimensions while keeping page scale between 95% and 105%.
-    """
+# ... (try_layout function remains unchanged) ...
+# ... (try_layout function remains unchanged) ...
     best_layout = {"eligible": False}
 
     for margin_test in range(5, 16):
@@ -114,6 +112,20 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                     
                     if layout["eligible"]:
                         
+                        # --- FIX START: Clean the title to remove the redundant path prefix ---
+                        # Check if the title contains the unwanted path prefix (separated by '/')
+                        if '/' in title:
+                            # Use the text AFTER the first '/' for slug generation
+                            title_for_slug = title.split('/', 1)[1].strip()
+                        else:
+                            # Use the entire title for simple handles (like Crane's)
+                            title_for_slug = title
+                            
+                        # 1. Generate a clean slug using existing slugify (will use underscores)
+                        # 2. Convert underscores to hyphens for the final URL slug
+                        clean_url_slug = slugify(title_for_slug).replace('_', '-')
+                        # --- FIX END ---
+                        
                         # --- Cover URL Logic (Fixed to use R2 URL) ---
                         cover_key = handle 
                         cover_url = f"{R2_COVERS_BASE_URL}/x{cover_key}.jpg"
@@ -124,8 +136,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                         eligible.append({
                             "title": title,
                             "handle": handle,
-                            "slug": slugify(handle),
-                            # Removed the confusing 'grid' key which was causing KeyError.
+                            "product_slug": clean_url_slug, # <-- NEW, CORRECT SLUG FIELD
                             "scale": layout.get("scale_pct"),
                             "cover_url": cover_url, 
                             "pages": pages,
