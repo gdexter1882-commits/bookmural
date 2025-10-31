@@ -8,22 +8,21 @@ import math
 # --- Configuration (Set the R2 Base URL for Covers) ---
 R2_COVERS_BASE_URL = "https://pub-391c14324a544917a28a9e0955bfc219.r2.dev/covers"
 
-# --- Utility Functions ---
+# --- Utility Functions ---\
 
 def slugify(text):
     if not isinstance(text, str):
         return ""
     text = unicodedata.normalize("NFKD", text)
     text = text.encode("ascii", "ignore").decode("ascii")
+    # This step removes non-word characters like commas and parentheses
     text = re.sub(r"[^\w\s-]", "", text)
+    # This step replaces spaces/multiple hyphens with an underscore
     text = re.sub(r"[\s-]+\s*", "_", text)
     return text.lower().strip("_")
 
 def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
-    """
-    Finds the optimal layout (columns, rows, scale, margin, row_gap) 
-    that fits the wall dimensions while keeping page scale between 95% and 105%.
-    """
+# ... (try_layout function remains unchanged) ...
     best_layout = {"eligible": False}
 
     for margin_test in range(5, 16):
@@ -114,22 +113,28 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                     
                     if layout["eligible"]:
                         
-                        # --- FIX START: Clean the title to remove the redundant path prefix and generate URL slug ---
-                        # 1. Determine the clean text for slugging (after the first '/')
-                        if '/' in title:
-                            # Use the text AFTER the first '/' for slug generation
-                            title_for_slug = title.split('/', 1)[1].strip()
+                        # --- FIX START: Robust slug generation (path removal + number preservation) ---
+                        title_for_slug = title.strip()
+                        
+                        # 1. Remove author/stories path prefix (e.g., "Dickens, Charles, stories/")
+                        if '/' in title_for_slug:
+                            title_for_slug = title_for_slug.split('/', 1)[1].strip()
+                            
+                        # 2. Extract the page number from the end (e.g., '42' from '(42 pages)')
+                        page_match = re.search(r'\((\d+)\s*pages\)$', title_for_slug)
+                        page_number = page_match.group(1) if page_match else None
+                            
+                        # 3. Remove the entire '(XXX pages)' suffix from the title
+                        title_for_slug_clean = re.sub(r'\s*\(\d+\s*pages\)$', '', title_for_slug)
+
+                        # 4. Generate the base slug from the clean title
+                        base_slug = slugify(title_for_slug_clean).replace('_', '-')
+                        
+                        # 5. Append the page number to the clean slug if found
+                        if page_number:
+                            clean_url_slug = f"{base_slug}-{page_number}"
                         else:
-                            # Use the entire title for simple handles (like Crane's)
-                            title_for_slug = title
-                            
-                        # 2. NEW FIX: Remove the "(XXX pages)" suffix before slugging.
-                        # This uses regex to find " (NUMBER pages)" at the end of the string and remove it.
-                        title_for_slug = re.sub(r' \(\d+ pages\)$', '', title_for_slug)
-                            
-                        # 3. Generate a clean slug using existing slugify (will use underscores)
-                        # 4. Convert underscores to hyphens for the final URL slug
-                        clean_url_slug = slugify(title_for_slug).replace('_', '-')
+                            clean_url_slug = base_slug
                         # --- FIX END ---
                         
                         # --- Cover URL Logic (Fixed to use R2 URL) ---
