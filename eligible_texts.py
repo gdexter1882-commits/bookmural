@@ -3,7 +3,7 @@ import csv
 import unicodedata
 import re
 import os 
-import math # Added math import
+import math
 
 # --- Configuration (Set the R2 Base URL for Covers) ---
 R2_COVERS_BASE_URL = "https://pub-391c14324a544917a28a9e0955bfc219.r2.dev/covers"
@@ -51,13 +51,11 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                 # Check if the total width fits the usable wall width
                 if total_w_needed <= usable_w:
                     # We found a valid layout that fits!
-                    # Calculate the actual row margin (row_gap) and column margin (col_gap, which is the remainder of usable_w)
                     
                     # Calculate the average column gap (including the margins)
-                    col_gap = (usable_w - cols * scaled_pw) / (cols - 1 if cols > 1 else 2) # Divisor 2 for cols=1 means margin on both sides
+                    col_gap = (usable_w - cols * scaled_pw) / (cols - 1 if cols > 1 else 2) 
 
                     # Re-check the column gap constraint (must be close to row_gap, e.g., within 2cm)
-                    # Using a simple check to ensure layout looks balanced
                     if abs(col_gap - row_gap) <= 2 or cols == 1:
                         
                         # Calculate the margin needed to center the grid perfectly
@@ -127,8 +125,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                             "title": title,
                             "handle": handle,
                             "slug": slugify(handle),
-                            # Layout details are stored in the 'layout_details' key
-                            "grid": layout.get("grid"), 
+                            # Removed the confusing 'grid' key which was causing KeyError.
                             "scale": layout.get("scale_pct"),
                             "cover_url": cover_url, 
                             "pages": pages,
