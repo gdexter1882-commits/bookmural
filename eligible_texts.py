@@ -123,8 +123,12 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                             # Use the entire title for simple handles (like Crane's)
                             title_for_slug = title
                             
-                        # 2. Generate a clean slug using existing slugify (will use underscores)
-                        # 3. Convert underscores to hyphens for the final URL slug
+                        # 2. NEW FIX: Remove the "(XXX pages)" suffix before slugging.
+                        # This uses regex to find " (NUMBER pages)" at the end of the string and remove it.
+                        title_for_slug = re.sub(r' \(\d+ pages\)$', '', title_for_slug)
+                            
+                        # 3. Generate a clean slug using existing slugify (will use underscores)
+                        # 4. Convert underscores to hyphens for the final URL slug
                         clean_url_slug = slugify(title_for_slug).replace('_', '-')
                         # --- FIX END ---
                         
