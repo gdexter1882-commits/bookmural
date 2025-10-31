@@ -81,24 +81,19 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
 async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Image:
     folder = mural["folder"]
     pages = mural["pages"]
-    
-    rows = layout["rows"]
-    cols = layout["cols"]
+    rows, cols = map(int, layout["grid"].split("x"))
 
     # Scale dimensions for preview
     pw = int(layout["page_w"] * PREVIEW_SCALE_FACTOR)
     ph = int(layout["page_h"] * PREVIEW_SCALE_FACTOR)
     margin_x = int(layout["margin_x"] * PREVIEW_SCALE_FACTOR)
     margin_y = int(layout["margin_y"] * PREVIEW_SCALE_FACTOR)
-    
-    # This is the row_gap, now correctly used for vertical spacing only
-    v_gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR
-    
-    # Canvas setup
-    # FIX 1: Canvas width should NOT include a horizontal gap
-    canvas_w = cols * pw + 2 * margin_x
-    # Canvas height uses the vertical gap (v_gap)
-    canvas_h = rows * ph + (rows - 1) * v_gap + 2 * margin_y
+    # This is the row_gap, used for both horizontal and vertical spacing in pixels
+    gap = int(layout["row_gap"] * PREVIEW_SCALE_FACTOR)
+
+    # Canvas setup - FIX: Include horizontal gaps in canvas_w
+    canvas_w = cols * pw + (cols - 1) * gap + 2 * margin_x
+    canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
     img = Image.new("RGB", (canvas_w, canvas_h), "white")
 
     # Build URLs
@@ -123,11 +118,11 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
         col = idx % cols
         row = idx // cols
         
-        # FIX 2: Horizontal position should NOT include a gap (pages butt up)
-        x = margin_x + col * pw 
+        # FIX: Include the cumulative horizontal gap for correct placement
+        x = margin_x + col * pw + col * gap
         
-        # Vertical gap is correctly handled by 'v_gap'
-        y = margin_y + row * (ph + v_gap)
+        # Vertical gap is handled correctly by 'gap'
+        y = margin_y + row * (ph + gap)
 
         page_num = idx + 1
         
@@ -149,6 +144,8 @@ async def draw_grid(handle: str, layout: dict, folder: str, pages: int, cdn_map:
         # 'folder' is passed in from app.py now, but keeping the structure clean
         "folder": folder, 
         "pages": pages,
+        "page_w": layout["page_w"],
+        "page_h": layout["page_h"],
     }
     
     # Generate the Pillow Image object
