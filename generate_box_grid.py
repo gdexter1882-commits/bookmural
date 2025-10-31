@@ -81,7 +81,10 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
 async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Image:
     folder = mural["folder"]
     pages = mural["pages"]
-    rows, cols = map(int, layout["grid"].split("x")) 
+    
+    # FIX: Use 'rows' and 'cols' keys directly from the layout dict instead of trying to parse a missing 'grid' key.
+    rows = int(layout["rows"])
+    cols = int(layout["cols"])
 
     # Scale dimensions for preview. These must be integers.
     pw = int(layout["page_w"] * PREVIEW_SCALE_FACTOR)
@@ -92,8 +95,7 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     # The gap value (scaled) is the same for horizontal and vertical spacing (left as float for precision)
     gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR 
 
-    # Canvas setup - FIX 1: Include horizontal gaps in canvas_w. 
-    # FIX 2: Explicitly cast dimensions to int() for Image.new() to avoid crash.
+    # Canvas setup - Include horizontal gaps in canvas_w and cast to int().
     canvas_w = cols * pw + (cols - 1) * gap + 2 * margin_x
     canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
     
@@ -121,7 +123,7 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
         col = idx % cols
         row = idx // cols
         
-        # FIX: Include the cumulative horizontal gap for correct placement. Cast to int().
+        # Include the cumulative horizontal gap for correct placement. Cast to int().
         x = int(margin_x + col * pw + col * gap)
         
         # Vertical placement. Cast to int().
