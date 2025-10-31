@@ -81,18 +81,22 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
 async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Image:
     folder = mural["folder"]
     pages = mural["pages"]
-    rows, cols = map(int, layout["grid"].split("x"))
+    
+    # --- FIX 1: Resolves KeyError: 'grid' by reading new keys ---
+    rows = layout["rows"]
+    cols = layout["cols"]
 
     # Scale dimensions for preview
     pw = int(layout["page_w"] * PREVIEW_SCALE_FACTOR)
     ph = int(layout["page_h"] * PREVIEW_SCALE_FACTOR)
     margin_x = int(layout["margin_x"] * PREVIEW_SCALE_FACTOR)
     margin_y = int(layout["margin_y"] * PREVIEW_SCALE_FACTOR)
-    # This is the row_gap, used for vertical spacing only
+    # This is the row_gap, used for vertical and horizontal spacing
     gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR
 
     # Canvas setup
-    canvas_w = cols * pw + 2 * margin_x
+    # --- FIX 2: Correctly calculate canvas width to include horizontal gaps ---
+    canvas_w = cols * pw + (cols - 1) * gap + 2 * margin_x
     canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
     img = Image.new("RGB", (canvas_w, canvas_h), "white")
 
@@ -118,10 +122,10 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
         col = idx % cols
         row = idx // cols
         
-        # FIX: Horizontal gap between columns is 0 (pages butt up)
-        x = margin_x + col * pw 
+        # --- FIX 3: Correctly calculate horizontal page positioning to include gaps ---
+        x = margin_x + col * pw + col * gap
         
-        # Vertical gap is handled by 'gap' (row_gap)
+        # Vertical positioning (Vertical gap is handled by 'gap' (row_gap))
         y = margin_y + row * (ph + gap)
 
         page_num = idx + 1
@@ -144,8 +148,6 @@ async def draw_grid(handle: str, layout: dict, folder: str, pages: int, cdn_map:
         # 'folder' is passed in from app.py now, but keeping the structure clean
         "folder": folder, 
         "pages": pages,
-        "page_w": layout["page_w"],
-        "page_h": layout["page_h"],
     }
     
     # Generate the Pillow Image object
