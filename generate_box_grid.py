@@ -81,20 +81,23 @@ def upload_to_r2(handle: str, image: Image.Image) -> str:
 async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Image:
     folder = mural["folder"]
     pages = mural["pages"]
-    rows, cols = map(int, layout["grid"].split("x"))
+    rows, cols = map(int, layout["grid"].split("x")) 
 
-    # Scale dimensions for preview
+    # Scale dimensions for preview. These must be integers.
     pw = int(layout["page_w"] * PREVIEW_SCALE_FACTOR)
     ph = int(layout["page_h"] * PREVIEW_SCALE_FACTOR)
     margin_x = int(layout["margin_x"] * PREVIEW_SCALE_FACTOR)
     margin_y = int(layout["margin_y"] * PREVIEW_SCALE_FACTOR)
-    # This is the row_gap, used for both horizontal and vertical spacing in pixels
-    gap = int(layout["row_gap"] * PREVIEW_SCALE_FACTOR)
+    
+    # The gap value (scaled) is the same for horizontal and vertical spacing (left as float for precision)
+    gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR 
 
-    # Canvas setup - FIX: Include horizontal gaps in canvas_w
+    # Canvas setup - FIX 1: Include horizontal gaps in canvas_w. 
+    # FIX 2: Explicitly cast dimensions to int() for Image.new() to avoid crash.
     canvas_w = cols * pw + (cols - 1) * gap + 2 * margin_x
     canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
-    img = Image.new("RGB", (canvas_w, canvas_h), "white")
+    
+    img = Image.new("RGB", (int(canvas_w), int(canvas_h)), "white") # Explicit cast to int()
 
     # Build URLs
     page_urls = []
@@ -118,11 +121,11 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
         col = idx % cols
         row = idx // cols
         
-        # FIX: Include the cumulative horizontal gap for correct placement
-        x = margin_x + col * pw + col * gap
+        # FIX: Include the cumulative horizontal gap for correct placement. Cast to int().
+        x = int(margin_x + col * pw + col * gap)
         
-        # Vertical gap is handled correctly by 'gap'
-        y = margin_y + row * (ph + gap)
+        # Vertical placement. Cast to int().
+        y = int(margin_y + row * (ph + gap))
 
         page_num = idx + 1
         
