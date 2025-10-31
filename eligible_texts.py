@@ -1,4 +1,3 @@
-# eligible_texts.py
 import csv
 import unicodedata
 import re
@@ -11,7 +10,6 @@ R2_COVERS_BASE_URL = "https://pub-391c14324a544917a28a9e0955bfc219.r2.dev/covers
 # --- Utility Functions ---
 
 def slugify(text):
-# ... (slugify function remains unchanged) ...
     if not isinstance(text, str):
         return ""
     text = unicodedata.normalize("NFKD", text)
@@ -78,6 +76,18 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                     
     return best_layout
 
+def get_folder_key_from_title(title: str) -> str:
+    """
+    Generates the folder key by replacing '(NUM pages)' with ' (NUM)'.
+    This logic is robust against varying whitespace before the parentheses.
+    """
+    # Regex to capture the page count number (\d+) within the parenthesis
+    folder_key_pattern = re.compile(r'\s*\((?P<count>\d+)\s*pages\)$') 
+    
+    # Substitute the full '(NUM pages)' string with ' (NUM)'
+    folder_key = folder_key_pattern.sub(r' (\g<count>)', title)
+    
+    return folder_key.strip()
 
 # --- Main Function ---
 
@@ -110,7 +120,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                     
                     if layout["eligible"]:
                         
-                        # --- Slug Generation (omitted for brevity) ---
+                        # --- Slug Generation (remains the same) ---
                         title_for_slug = title.strip()
                         if '/' in title_for_slug:
                             title_for_slug = title_for_slug.split('/', 1)[1].strip()
@@ -124,16 +134,9 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                             clean_url_slug = base_slug
                         # --- Slug Generation End ---
                         
-                        # --- FIX: ROBUST FOLDER KEY GENERATION ---
-                        # The CDN map key uses (NUM) not (NUM pages).
-                        # Find the final (NUM pages) and replace it with (NUM)
-                        folder_title = row['Title']
-                        # The r'\1' backreference is the captured page count number
-                        folder_key = re.sub(r'\s*\((?P<count>\d+)\s*pages\)$', r' (\g<count>)', folder_title)
-                        
-                        # Clean up any residual space
-                        folder_key = folder_key.strip()
-                        # --- FIX END ---
+                        # --- FIX: ROBUST FOLDER KEY GENERATION (using helper function) ---
+                        # This generates the exact key that MUST be in cdn_map.json
+                        folder_key = get_folder_key_from_title(title)
                         
                         # --- Cover URL Logic ---
                         cover_key = handle 
@@ -151,7 +154,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                             "aspect_ratio": aspect_ratio,
                             "page_w": width_cm,
                             "page_h": height_cm,
-                            "folder": folder_key, 
+                            "folder": folder_key, # THE CORRECTED KEY
                             "layout_details": layout 
                         })
                 except Exception as e:
