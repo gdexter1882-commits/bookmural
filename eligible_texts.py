@@ -11,6 +11,7 @@ R2_COVERS_BASE_URL = "https://pub-391c14324a544917a28a9e0955bfc219.r2.dev/covers
 # --- Utility Functions ---
 
 def slugify(text):
+# ... (slugify function remains unchanged) ...
     if not isinstance(text, str):
         return ""
     text = unicodedata.normalize("NFKD", text)
@@ -47,8 +48,6 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                 
                 # Check 1: Horizontal margin must be between 5cm and 16cm.
                 if not (5 <= butted_up_margin_x <= 16):
-                    # If margin is too small (<5), this row count is too wide, so continue to next row count.
-                    # If margin is too large (>16), this row count is too narrow, so continue to next row count.
                     continue 
 
                 # --- 2. Vertical Fit and Constraint Check (Using row_gap) ---
@@ -57,7 +56,6 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                 
                 # Check 2a: Vertical margin must be positive (i.e., must fit vertically)
                 if final_margin_y < 0:
-                    # Cannot fit this many rows, break the inner loop (row iteration) and try a different scale/gap.
                     break 
                 
                 # Check 2b: Vertical margin must be between 5cm and 16cm.
@@ -81,7 +79,7 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
     return best_layout
 
 
-# --- Main Function (remains unchanged) ---
+# --- Main Function ---
 
 def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerated.csv", cdn_map=None):
     """
@@ -89,7 +87,6 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
     """
     eligible = []
     
-    # Check for the CSV file
     if not os.path.exists(csv_path):
         print(f"❌ Critical Error: CSV file not found at {csv_path}", flush=True)
         return []
@@ -113,24 +110,30 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                     
                     if layout["eligible"]:
                         
-                        # --- Slug Generation ---
+                        # --- Slug Generation (omitted for brevity) ---
                         title_for_slug = title.strip()
-                        
                         if '/' in title_for_slug:
                             title_for_slug = title_for_slug.split('/', 1)[1].strip()
-                            
                         page_match = re.search(r'\((\d+)\s*pages\)$', title_for_slug)
                         page_number = page_match.group(1) if page_match else None
-                            
                         title_for_slug_clean = re.sub(r'\s*\(\d+\s*pages\)$', '', title_for_slug)
-
                         base_slug = slugify(title_for_slug_clean).replace('_', '-')
-                        
                         if page_number:
                             clean_url_slug = f"{base_slug}-{page_number}"
                         else:
                             clean_url_slug = base_slug
                         # --- Slug Generation End ---
+                        
+                        # --- FIX: ROBUST FOLDER KEY GENERATION ---
+                        # The CDN map key uses (NUM) not (NUM pages).
+                        # Find the final (NUM pages) and replace it with (NUM)
+                        folder_title = row['Title']
+                        # The r'\1' backreference is the captured page count number
+                        folder_key = re.sub(r'\s*\((?P<count>\d+)\s*pages\)$', r' (\g<count>)', folder_title)
+                        
+                        # Clean up any residual space
+                        folder_key = folder_key.strip()
+                        # --- FIX END ---
                         
                         # --- Cover URL Logic ---
                         cover_key = handle 
@@ -148,7 +151,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                             "aspect_ratio": aspect_ratio,
                             "page_w": width_cm,
                             "page_h": height_cm,
-                            "folder": title.rsplit(" (", 1)[0] + f" ({pages})", 
+                            "folder": folder_key, 
                             "layout_details": layout 
                         })
                 except Exception as e:

@@ -11,28 +11,26 @@ from eligible_texts import slugify
 PREVIEW_SCALE_FACTOR = 10 
 
 def draw_error_tile(width: int, height: int, page_num: int) -> Image.Image:
-# ... (draw_error_tile function remains unchanged) ...
     tile = Image.new("RGB", (width, height), "#eeeeee")
     draw = ImageDraw.Draw(tile)
     draw.text((width // 2 - 10, height // 2 - 10), f"X{page_num}", fill="red")
     return tile
 
 async def fetch_image(session: aiohttp.ClientSession, url: str, timeout: int = 30) -> Image.Image | None:
-# ... (fetch_image function remains unchanged) ...
     if not url:
         return None
     try:
         async with session.get(url, timeout=timeout) as resp:
-            resp.raise_for_status()
+            resp.raise_for_status() # Raises for 4xx/5xx status codes
             data = await resp.read()
             return Image.open(BytesIO(data)).convert("RGB")
     except Exception as e:
-        print(f"Failed to fetch {url}: {e}", flush=True)
+        # Added explicit logging for fetch failure
+        print(f"❌ Failed to fetch image URL {url} from CDN: {e}", flush=True)
         return None
 
-# --- R2 Upload Function (remains unchanged) ---
+# --- R2 Upload Function (omitted for brevity) ---
 def upload_to_r2(handle: str, image: Image.Image) -> str:
-# ... (upload_to_r2 function remains unchanged) ...
     try:
         R2_ENDPOINT = os.environ.get('R2_ENDPOINT_URL')
         BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
@@ -77,27 +75,17 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     folder = mural["folder"]
     pages = mural["pages"]
     
-    # Use 'rows' and 'cols' keys directly from the layout dict
     rows = int(layout["rows"])
     cols = int(layout["cols"])
 
-    # Scale dimensions for preview. These must be integers.
     pw = int(layout["page_w"] * PREVIEW_SCALE_FACTOR)
     ph = int(layout["page_h"] * PREVIEW_SCALE_FACTOR)
     
-    # FIX: Use the new, pre-calculated butted-up margin
     effective_margin_x = int(layout["butted_up_margin_x"] * PREVIEW_SCALE_FACTOR)
-    
-    # The margin_y remains the same (calculated with vertical gaps)
     margin_y = int(layout["margin_y"] * PREVIEW_SCALE_FACTOR)
-    
-    # The calculated gap (used for vertical spacing)
     gap = layout["row_gap"] * PREVIEW_SCALE_FACTOR 
 
-    # Canvas setup - Calculated using the butted-up margin. This maintains proportional width.
     canvas_w = 2 * effective_margin_x + cols * pw
-    
-    # Vertical height calculation remains the same (it still needs the vertical gaps)
     canvas_h = rows * ph + (rows - 1) * gap + 2 * margin_y
     
     img = Image.new("RGB", (int(canvas_w), int(canvas_h)), "white") 
@@ -105,10 +93,15 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
     # Build URLs
     page_urls = []
     for i in range(pages):
-        rel_path = f"{folder}/Page_{i+1:03}.jpg"
+        page_num = i + 1
+        page_num_str = f"{page_num:03}"
+        rel_path = f"{folder}/Page_{page_num_str}.jpg"
         url = cdn_map.get(rel_path)
+        
+        # --- FIX: ADDED LOGGING HERE TO CATCH MISSING KEYS ---
         if not url:
-            print(f"CDN map missing: {rel_path}", flush=True)
+            print(f"❌ CDN map missing page URL: {rel_path} (Page {page_num} of {pages}) for mural '{folder}'", flush=True)
+            
         page_urls.append(url)
 
     # Async fetch
@@ -124,18 +117,16 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
         col = idx % cols
         row = idx // cols
         
-        # New X: Pages butt up, starting from the effective margin. No gap added here.
         x = int(effective_margin_x + col * pw)
-        
-        # Vertical placement: Still uses the gap. Cast to int().
         y = int(margin_y + row * (ph + gap))
 
         page_num = idx + 1
         
         if page_img:
-            # Note: LANCZOS is the highest quality resampling filter
             page_img = page_img.resize((pw, ph), Image.LANCZOS)
         else:
+            # --- FIX: ADDED LOGGING HERE TO CATCH FAILED FETCHES ---
+            print(f"⚠️ Failed to draw Page {page_num} for mural '{folder}' - using error tile.", flush=True)
             page_img = draw_error_tile(pw, ph, page_num)
             
         img.paste(page_img, (x, y))
@@ -145,7 +136,6 @@ async def draw_grid_image(mural: dict, layout: dict, cdn_map: dict) -> Image.Ima
 
 # --- Main entry point for grid generation (5 arguments) ---
 async def draw_grid(handle: str, layout: dict, folder: str, pages: int, cdn_map: dict):
-# ... (draw_grid function remains unchanged) ...
     mural = {
         "folder": folder, 
         "pages": pages,
