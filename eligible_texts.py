@@ -25,7 +25,7 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
     1. Page scale between 95% and 105%.
     2. Horizontal pages butted up (no gap).
     3. Horizontal margins strictly between 5cm and 16cm.
-    4. Vertical margins strictly between 30cm and 40cm.
+    4. Vertical margins strictly between 30cm and 50cm.
     """
     best_layout = {"eligible": False}
 
@@ -50,8 +50,8 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                 if final_margin_y < 0:
                     break 
 
-                # Vertical margin must be between 30cm and 40cm
-                if 30 <= final_margin_y <= 40:
+                # Vertical margin must be between 30cm and 50cm
+                if 30 <= final_margin_y <= 50:
                     current_layout = {
                         "eligible": True,
                         "scale_pct": scale_pct,
