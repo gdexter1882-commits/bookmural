@@ -63,13 +63,26 @@ def health():
 @app.route("/api/eligible-texts", methods=["POST"])
 def get_texts():
     # This route remains for your main calculator page
-# ... existing code ...
+    # --- FIX: Replaced placeholder with actual code ---
+    data = request.get_json()
+    wall_width = float(data.get("wall_width"))
+    wall_height = float(data.get("wall_height"))
+    
+    print(f"Received request for {wall_width} x {wall_height}", flush=True)
+    # --- END FIX ---
+
     # This is a full-scan, so we call the original function
     # NOTE: You could optimize this to use the pre-loaded CSV data
     # but for now we keep it as it was.
     from eligible_texts import get_eligible_texts
     eligible = get_eligible_texts(
-# ... existing code ...
+        # --- FIX: Replaced placeholder with actual arguments ---
+        wall_width,
+        wall_height,
+        csv_path=CSV_PATH,
+        cdn_map=cdn_map
+        # --- END FIX ---
+    )
     return jsonify(eligible)
 
 
@@ -149,13 +162,31 @@ def calculate_single_mural():
 
 @app.route("/api/accurate-grid", methods=["POST"])
 def generate_accurate_grid():
-# ... existing code ...
+    # --- FIX: Replaced placeholder with actual code ---
+    try:
+        data = request.get_json()
+        handle = data.get("handle")
+        wall_width = float(data.get("wall_width"))
+        wall_height = float(data.get("wall_height"))
+        
+        layout = data.get("layout")
+        mural = data.get("mural") # This contains { "folder": "...", "pages": "..." }
+
+        print(f"Generating grid for {handle} at {wall_width} x {wall_height}", flush=True)
+    # --- END FIX ---
+
         # Re-run eligibility and layout calculation
         # NOTE: This is slow. You could optimize this to use the
         # pre-loaded CSV data and 'try_layout' like the new endpoint.
         from eligible_texts import get_eligible_texts
         eligible = get_eligible_texts(
-# ... existing code ...
+            # --- FIX: Replaced placeholder with actual arguments ---
+            wall_width,
+            wall_height,
+            csv_path=CSV_PATH,
+            cdn_map=cdn_map
+            # --- END FIX ---
+        )
         if not mural:
             # Need to get folder_key and pages from our pre-loaded data
             csv_handle = slugify(handle)
@@ -170,9 +201,14 @@ def generate_accurate_grid():
         
         # Try to find the layout if it wasn't passed
         if not layout:
-# ... existing code ...
+            # --- FIX: Replaced placeholder with actual code ---
+            print("Layout not passed, recalculating...", flush=True)
             # We can re-calculate the layout here
+            csv_handle = slugify(handle)
             book_data = mural_data_by_handle.get(csv_handle)
+            if not book_data:
+                 return jsonify({"error": "Book data not found for layout recalc"}), 404
+            # --- END FIX ---
             layout = try_layout(
                 wall_width, 
                 wall_height, 
@@ -184,4 +220,22 @@ def generate_accurate_grid():
                  return jsonify({"error": "Layout details not found or not eligible"}), 400
 
         # Run the async draw_grid function, passing exactly 5 arguments
-# ... existing code ...
+        # --- FIX: Replaced placeholder with actual code ---
+        grid_url = asyncio.run(draw_grid(
+            handle, 
+            layout, 
+            mural["folder"],  # ARG 3: folder
+            mural["pages"],   # ARG 4: pages
+            cdn_map           # ARG 5: cdn_map
+        ))
+        
+        if grid_url:
+            # Return the CDN URL directly
+            return jsonify({"grid_url": grid_url})
+        else:
+            return jsonify({"error": "Failed to generate or upload grid"}), 500
+            
+    except Exception as e:
+        print(f"❌ Critical Error in /api/accurate-grid: {e}\n{traceback.format_exc()}", flush=True)
+        return jsonify({"error": f"Server error: {e}"}), 500
+        # --- END FIX ---
