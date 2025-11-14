@@ -1,4 +1,4 @@
-# app.py
+# app.py (modified to add /api/check-mural endpoint)
 import os
 import json
 from flask import Flask, request, jsonify
@@ -56,6 +56,35 @@ def get_murals():
     except Exception as e:
         print(f"❌ Error in /api/murals: {e}", flush=True)
         traceback.print_exc() # Print traceback for murals endpoint too, just in case
+        return jsonify({"error": "Internal server error"}), 500
+
+@app.route("/api/check-mural", methods=["POST"])
+def check_mural():
+    try:
+        data = request.get_json()
+        handle = data.get("handle")
+        wall_width = data.get("wall_width", 0)
+        wall_height = data.get("wall_height", 0)
+        
+        if not handle or not wall_width or not wall_height:
+            return jsonify({"error": "Missing parameters"}), 400
+
+        eligible = get_eligible_texts(
+            wall_width,
+            wall_height,
+            csv_path=CSV_PATH,
+            cdn_map=cdn_map
+        )
+        mural = next((m for m in eligible if m["handle"] == handle), None)
+        
+        if mural:
+            return jsonify(mural)
+        else:
+            return jsonify({"eligible": False})
+
+    except Exception as e:
+        print(f"❌ Error in /api/check-mural: {e}", flush=True)
+        traceback.print_exc()
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route("/api/accurate-grid", methods=["POST"])
