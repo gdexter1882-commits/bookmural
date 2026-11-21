@@ -14,7 +14,7 @@ os.environ["FLASK_RUN_PORT"] = os.environ.get("PORT", "5000")
 app = Flask(__name__, static_folder="static")
 
 # CORS setup is correct, allowing requests from smallestroom.com
-CORS(app, resources={r"/api/*": {"origins": "https://storywalls.co.uk"}})
+CORS(app, resources={r"/api/*": {"origins": ["https://storywalls.co.uk", "https://www.storywalls.co.uk", "https://smallestroom.com"]}})
 
 CSV_PATH = "mural_master_regenerated.csv"
 
