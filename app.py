@@ -135,3 +135,8 @@ def accurate_grid():
         print(f"❌ Critical Error in /api/accurate-grid: {e}", flush=True)
         traceback.print_exc() # <--- MODIFIED: Print the full error stack
         return jsonify({"error": "Failed to generate or upload grid"}), 500
+
+
+# Size-priced checkout (draft orders) – see shopify_checkout.py
+import shopify_checkout
+shopify_checkout.register(app)
