@@ -110,7 +110,7 @@ mutation($input: DraftOrderInput!) {
 
 DRAFT_STATUS_QUERY = """
 query($id: ID!) {
-  draftOrder(id: $id) { status order { id } }
+  draftOrder(id: $id) { status }
 }
 """
 
@@ -205,7 +205,7 @@ def register(app):
             node = _graphql(DRAFT_STATUS_QUERY, {"id": draft_id}).get("draftOrder")
             if not node:
                 return jsonify({"completed": False, "exists": False})
-            return jsonify({"completed": node["status"] == "COMPLETED" or bool(node.get("order")), "exists": True})
+            return jsonify({"completed": node["status"] == "COMPLETED", "exists": True})
         except Exception as e:
             print(f"❌ Error in /api/checkout-status: {e}", flush=True)
             return jsonify({"error": "Could not check status"}), 500
