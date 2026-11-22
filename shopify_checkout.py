@@ -23,6 +23,7 @@ The Dev Dashboard app needs the scopes: write_draft_orders, read_products
 import json
 import math
 import os
+import re
 import threading
 import time
 import traceback
@@ -107,6 +108,13 @@ mutation($input: DraftOrderInput!) {
 """
 
 
+DRAFT_STATUS_QUERY = """
+query($id: ID!) {
+  draftOrder(id: $id) { status order { id } }
+}
+"""
+
+
 def _cm(value):
     """Whole centimetres, rounded the same way as the storefront (half up)."""
     return int(Decimal(str(value)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
@@ -177,7 +185,7 @@ def register(app):
                 return jsonify({"error": "Could not start checkout. Please try again."}), 502
             draft = result["draftOrder"]
             print(f"🧾 Draft order {draft['name']} created: {draft['totalPriceSet']}", flush=True)
-            return jsonify({"checkout_url": draft["invoiceUrl"], "draft": draft["name"]})
+            return jsonify({"checkout_url": draft["invoiceUrl"], "draft": draft["name"], "draft_id": draft["id"]})
 
         except KeyError as e:
             print(f"❌ /api/checkout missing setting: {e}", flush=True)
@@ -186,3 +194,18 @@ def register(app):
             print(f"❌ Error in /api/checkout: {e}", flush=True)
             traceback.print_exc()
             return jsonify({"error": "Could not start checkout. Please try again."}), 500
+
+    @app.route("/api/checkout-status", methods=["GET"])
+    def checkout_status():
+        """Has the customer paid for this checkout? The storefront uses this to empty the cart after an order."""
+        draft_id = request.args.get("id", "")
+        if not re.fullmatch(r"gid://shopify/DraftOrder/\d+", draft_id):
+            return jsonify({"error": "Invalid id"}), 400
+        try:
+            node = _graphql(DRAFT_STATUS_QUERY, {"id": draft_id}).get("draftOrder")
+            if not node:
+                return jsonify({"completed": False, "exists": False})
+            return jsonify({"completed": node["status"] == "COMPLETED" or bool(node.get("order")), "exists": True})
+        except Exception as e:
+            print(f"❌ Error in /api/checkout-status: {e}", flush=True)
+            return jsonify({"error": "Could not check status"}), 500
