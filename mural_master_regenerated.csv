@@ -1,13 +1,13 @@
 Handle,Title,Pages,Page Width (cm),Page Height (cm)
 astounding_science_fiction_cover_collection_1950_facsimile_120,"Astounding, Science Fiction, Cover Collection, 1950 facsimile (120 pages)",120,12.06,18
-bronte_emily_poems_1906_facsimile_82,"Bronte, Emily, Poems, 1906 facsimile (82 pages)",82,10.45,18.0
+bronte_emily_poems_1906_facsimile_82,"Bronte, Emily, Poems, 1906 facsimile (82 pages)",82,10.45,18
 carroll_lewis_alice_s_adventures_in_wonderland_facsimile_169,"Carroll, Lewis, Alice's Adventures in Wonderland, facsimile (169 pages)",169,11.36,18
-cocteau_jean_dessins_1924_facsimile_277,"Cocteau, Jean, Dessins, 1924 facsimile (277 pages)",277,13.19,18.0
+cocteau_jean_dessins_1924_facsimile_277,"Cocteau, Jean, Dessins, 1924 facsimile (277 pages)",277,13.19,18
 crane_stephen_the_red_badge_of_courage_1898_facsimile_235,"Crane, Stephen, The Red Badge of Courage, 1898 facsimile (235 pages)",235,10.79,18
 dickens_charles_storiesdickens_charles_four_stories_captain_boldheart_mrs_orange_and_mrs_lemon_little_bebelle_the_story_of_the_goblins_who_stole_a_sexton_77,"Dickens, Charles, stories/Dickens, Charles, Four Stories, Captain Boldheart, Mrs Orange and Mrs Lemon, Little Bebelle, The Story of the Goblins who Stole a Sexton (77 pages)",77,11.7,16.19
 dickens_charles_storiesdickens_charles_three_stories_gone_astray_william_tinkling_the_magic_fishbone_facsimile_49,"Dickens, Charles, stories/Dickens, Charles, Three Stories, Gone Astray, William Tinkling, The Magic Fishbone, facsimile (49 pages)",49,11.7,16.19
 dickens_charles_storiesdickens_charles_two_stories_mugby_junction_a_childs_dream_of_a_star_facsimile_42,"Dickens, Charles, stories/Dickens, Charles, Two Stories, Mugby Junction, A Child's Dream of a Star, facsimile (42 pages)",42,11.7,16.19
-dunsany_edward_the_book_of_wonder_1913_facsimile_153,"Dunsany, Edward, The Book of Wonder, 1913 facsimile (153 pages)",153,11.94,18.0
+dunsany_edward_the_book_of_wonder_1913_facsimile_153,"Dunsany, Edward, The Book of Wonder, 1913 facsimile (153 pages)",153,11.94,18
 gilman_charlotte_perkins_the_yellow_wallpaper_1892_facsimile_10,"Gilman, Charlotte Perkins, The Yellow Wallpaper, 1892 facsimile (10 pages)",10,11.76,18
 hall_radclyffe_the_well_of_loneliness_book_one_1930_facsimile_241,"Hall, Radclyffe, The Well of Loneliness, Book One, 1930 facsimile (241 pages)",241,11.7,18
 hardy_thomas_wessex_taleshardy_thomas_2_wessex_tales_an_imaginative_woman_and_the_three_strangers_1896_facsimile_60,"Hardy, Thomas, Wessex Tales/Hardy, Thomas, 2 Wessex Tales, An Imaginative Woman, and The Three Strangers, 1896 facsimile (60 pages)",60,10.79,18
@@ -23,9 +23,8 @@ joyce_james_dubliners_short_storiesjoyce_james_3_stories_from_dubliners_a_mother
 joyce_james_dubliners_short_storiesjoyce_james_5_stories_from_dubliners_a_little_cloud_counterparts_clay_a_painful_case_ivy_day_in_the_committee_room_1914_facsimile_89,"Joyce, James, Dubliners short stories/Joyce, James, 5 stories from Dubliners, A Little Cloud, Counterparts, Clay, A Painful Case, Ivy Day in the Committee Room, 1914 facsimile (89 pages)",89,10.79,18
 joyce_james_dubliners_short_storiesjoyce_james_7_stories_from_dubliners_the_sisters_an_encounter_araby_eveline_after_the_race_two_gallants_the_boarding_house_1914_facsimile_82,"Joyce, James, Dubliners short stories/Joyce, James, 7 stories from Dubliners, The Sisters, An Encounter, Araby, Eveline, After the Race, Two Gallants, The Boarding House, 1914 facsimile (82 pages)",82,10.79,18
 joyce_james_dubliners_short_storiesjoyce_james_dubliners_complete_1914_facsimile_278,"Joyce, James, Dubliners short stories/Joyce, James, Dubliners, complete, 1914 facsimile (278 pages)",278,10.79,18
-lear_edward_a_book_of_nonsense_1870s_facsimile_121,"Lear, Edward, A Book of Nonsense, 1870s facsimile (121 pages)",121,11.2,18.0
+lear_edward_a_book_of_nonsense_1870s_facsimile_121,"Lear, Edward, A Book of Nonsense, 1870s facsimile (121 pages)",121,11.2,18
 leonardo_codex_madrid_notebook_part_one_facsimile_99,"Leonardo, Codex Madrid Notebook, Part One, facsimile (99 pages)",99,12.64,18
-leonardo_codex_madrid_notebook_part_one_facsimile_99,"Leonardo, Codex Madrid Notebook, Part One, facsimile (99 pages)",99,12.64,18.0
 mansfield_katherine_storiesmansfield_katherine_bliss_and_other_stories_1921_facsimile_287,"Mansfield, Katherine, stories/Mansfield, Katherine, Bliss and Other stories, 1921 facsimile (287 pages)",287,11.7,18
 mansfield_katherine_storiesmansfield_katherine_prelude_1921_facsimile_77,"Mansfield, Katherine, stories/Mansfield, Katherine, Prelude, 1921 facsimile (77 pages)",77,11.7,18
 mansfield_katherine_storiesmansfield_katherine_seven_stories_from_bliss_1921_facsimile_88,"Mansfield, Katherine, stories/Mansfield, Katherine, Seven stories from Bliss, 1921 facsimile (88 pages)",88,11.7,18
@@ -35,7 +34,7 @@ poe_ea_poems_and_storiespoe_ea_28_stories_including_the_murders_in_the_rue_morgu
 poe_ea_poems_and_storiespoe_ea_poems_featuring_the_raven_the_bells_lenore_annabel_lee_and_45_others_1946_facsimile_77,"Poe, EA, poems and stories/Poe, EA, Poems, featuring The Raven, The Bells, Lenore, Annabel Lee and 45 others, 1946 facsimile (77 pages)",77,10.79,18
 poe_ea_poems_and_storiespoe_ea_the_man_who_was_used_up_and_13_other_stories_including_the_murders_in_the_rue_morgue_and_the_fall_of_the_house_of_usher_1946_facsimile_127,"Poe, EA, poems and stories/Poe, EA, The Man Who Was Used Up and 13 Other Stories, including The Murders in the Rue Morgue and the Fall of the House of Usher, 1946 facsimile (127 pages)",127,10.79,18
 poe_ea_poems_and_storiespoe_ea_the_oval_portrait_and_13_more_stories_including_the_black_cat_the_tell_tale_heart_and_the_pit_and_the_pendulum_1946_facsimile_161,"Poe, EA, poems and stories/Poe, EA, The Oval Portrait and 13 More Stories, including The Black Cat, the Tell-Tale Heart and the Pit and the Pendulum, 1946 facsimile (161 pages)",161,10.79,18
-pope_alexander_the_rape_of_the_lock_with_illustrations_by_aubrey_beardsley_facsimile_67,"Pope, Alexander, The Rape of the Lock with illustrations by Aubrey Beardsley, facsimile (67 pages)",67,12.85,18.0
+pope_alexander_the_rape_of_the_lock_with_illustrations_by_aubrey_beardsley_facsimile_67,"Pope, Alexander, The Rape of the Lock with illustrations by Aubrey Beardsley, facsimile (67 pages)",67,12.85,18
 saki_beasts_and_super_beasts_1930_facsimile_complete_the_she_wolf_laura_the_boar_pig_cousin_teresa_and_32_others_242,"Saki, Beasts and Super-Beasts, 1930 facsimile, complete, The She-Wolf, Laura, The Boar-Pig, Cousin Teresa and 32 others (242 pages)",242,10.74,18
 saki_beasts_and_super_beasts_1930_facsimile_the_forbidden_buzzards_the_stake_the_story_teller_the_lumber_room_fur_and_9_others_97,"Saki, Beasts and Super-Beasts, 1930 facsimile, The Forbidden Buzzards, The Stake, The Story-Teller, The Lumber Room, Fur and 9 others (97 pages)",97,10.74,18
 saki_beasts_and_super_beasts_1930_facsimile_the_she_wolf_laura_the_boar_pig_the_brogue_the_hen_the_open_window_and_3_others_64,"Saki, Beasts and Super-Beasts, 1930 facsimile, The She-Wolf, Laura, The Boar-Pig, The Brogue, The Hen, The Open Window and 3 others (64 pages)",64,10.74,18
