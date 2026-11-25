@@ -129,7 +129,7 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                         print(f"✅ Generated R2 Cover URL: {cover_url}", flush=True)
 
                         eligible.append({
-                            "title": title,
+                            "title": title.replace("facsmile", "facsimile"),  # display only; folders/handles keep original spelling
                             "handle": handle,
                             "product_slug": clean_url_slug, 
                             "scale": layout.get("scale_pct"),
