@@ -18,41 +18,66 @@ def slugify(text):
     text = re.sub(r"[\s-]+\s*", "_", text)
     return text.lower().strip("_")
 
+DROP_W = 76          # Fancy Walls print in 76 cm drops, hung from the left edge of the wall
+MIN_LAST_PRINT = 3   # the last drop should carry at least this much printed mural (cm)
+
+
+def last_strip(wall_w, margin_x):
+    """Width of the last (part) drop and how much printed mural it carries, in cm.
+    Drops are counted from the left; the mural is centred, so the right margin = margin_x."""
+    if wall_w <= DROP_W:
+        return wall_w, wall_w - 2 * margin_x   # a single drop: no leftover strip
+    rem = wall_w % DROP_W
+    if rem < 1e-6:
+        return 0, 0                             # the wall is a whole number of drops
+    return rem, rem - margin_x
+
+
+def strip_ok(wall_w, margin_x):
+    rem, printed = last_strip(wall_w, margin_x)
+    return wall_w <= DROP_W or rem == 0 or printed >= MIN_LAST_PRINT
+
+
 def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
     """
-    Finds the optimal layout (cols, rows, scale, row_gap) that fits the wall
+    Finds a layout (cols, rows, scale, row_gap) that fits the wall
     dimensions while keeping:
     1. Page scale between 95% and 105%.
     2. Horizontal pages butted up (no gap).
-    3. Horizontal margins strictly between 5cm and 16cm.
-    4. Vertical margins strictly between 25cm and 45cm.
+    3. Horizontal margins between 5cm and 16cm.
+    4. Vertical margins between 25cm and 45cm.
+    Among the layouts that pass, the first one whose last 76 cm drop carries at least
+    3 cm of printed mural (or that leaves no part drop) wins. If none does, the first
+    layout that passes is used and "thin_strip" is set, so the website can warn.
+    The Scribus export and the theme's product-page calculator use the same rule.
     """
-    best_layout = {"eligible": False}
+    first = None
 
     for scale_pct in range(95, 106):
         scaled_pw = page_w * scale_pct / 100
         scaled_ph = page_h * scale_pct / 100
 
         for row_gap in range(1, 4):  # Row gaps of 1, 2, or 3 cm
-            for rows in range(1, 31): 
+            for rows in range(1, 31):
                 cols = math.ceil(pages / rows)
                 total_w_needed_butted = cols * scaled_pw
                 butted_up_margin_x = (wall_w - total_w_needed_butted) / 2
 
                 # Horizontal margin must be between 5cm and 16cm
                 if not (5 <= butted_up_margin_x <= 16):
-                    continue 
+                    continue
 
                 total_h_needed = rows * scaled_ph + (rows - 1) * row_gap
                 final_margin_y = (wall_h - total_h_needed) / 2
 
                 # Must fit vertically
                 if final_margin_y < 0:
-                    break 
+                    break
 
                 # Vertical margin must be between 25cm and 45cm
                 if 25 <= final_margin_y <= 45:
-                    current_layout = {
+                    rem, printed = last_strip(wall_w, butted_up_margin_x)
+                    layout = {
                         "eligible": True,
                         "scale_pct": scale_pct,
                         "cols": cols,
@@ -61,11 +86,20 @@ def try_layout(wall_w, wall_h, page_w, page_h, pages, margin=0):
                         "page_w": scaled_pw,
                         "page_h": scaled_ph,
                         "butted_up_margin_x": butted_up_margin_x,
-                        "margin_y": final_margin_y
+                        "margin_y": final_margin_y,
+                        "last_strip_cm": round(rem, 2),
+                        "last_strip_print_cm": round(printed, 2),
+                        "thin_strip": False,
                     }
-                    return current_layout
+                    if strip_ok(wall_w, butted_up_margin_x):
+                        return layout
+                    if first is None:
+                        first = layout
 
-    return best_layout
+    if first is not None:
+        first["thin_strip"] = True
+        return first
+    return {"eligible": False}
 
 def get_folder_key_from_title(title: str) -> str:
     """
@@ -129,7 +163,9 @@ def get_eligible_texts(wall_width, wall_height, csv_path="mural_master_regenerat
                         print(f"✅ Generated R2 Cover URL: {cover_url}", flush=True)
 
                         eligible.append({
-                            "title": title.replace("facsmile", "facsimile"),  # display only; folders/handles keep original spelling
+                            # Display title only: the Cloudflare folders and product handles keep
+                            # the original "facsmile" spelling, so folder/slug above use the raw title.
+                            "title": title.replace("facsmile", "facsimile"),
                             "handle": handle,
                             "product_slug": clean_url_slug, 
                             "scale": layout.get("scale_pct"),
