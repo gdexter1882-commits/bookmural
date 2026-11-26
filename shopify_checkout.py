@@ -34,6 +34,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from flask import jsonify, request
 
 from eligible_texts import try_layout
+import order_preview
 
 API_VERSION = "2026-07"
 MAX_ITEMS = 20
@@ -158,7 +159,8 @@ def register(app):
                     pw = float(prod["pw"]["value"]); ph = float(prod["ph"]["value"]); pages = int(prod["pages"]["value"])
                 except (TypeError, ValueError, KeyError):
                     return jsonify({"error": f"Missing size data for {prod['title']}."}), 400
-                if not try_layout(p["w"], p["h"], pw, ph, pages).get("eligible"):
+                layout = try_layout(p["w"], p["h"], pw, ph, pages)
+                if not layout.get("eligible"):
                     return jsonify({"error": f"{prod['title']} does not fit a {p['w']} × {p['h']} cm wall. "
                                              "Please remove it from your cart or check the mural calculator."}), 400
                 units = math.ceil(p["w"] * p["h"] / 100)          # 100 cm² = 0.01 m²
@@ -172,8 +174,15 @@ def register(app):
                         {"key": "Wall width", "value": f"{p['w']} cm"},
                         {"key": "Wall height", "value": f"{p['h']} cm"},
                         {"key": "Mural area", "value": f"{area:.2f} m²"},
+                        {"key": "Wallpaper drops", "value": order_preview.drops_text(p["w"])},
                     ],
                 })
+                try:   # picture for the order-confirmation email; drawn in the background
+                    url = order_preview.start_preview(prod.get("handle", ""), layout, p["w"], p["h"])
+                    if url:
+                        line_items[-1]["customAttributes"].append({"key": "_preview", "value": url})
+                except Exception as e:
+                    print(f"⚠️ Order preview not started: {e}", flush=True)
 
             result = _graphql(DRAFT_ORDER_MUTATION, {"input": {
                 "lineItems": line_items,
